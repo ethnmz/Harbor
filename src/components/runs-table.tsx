@@ -4,6 +4,7 @@ import { RunBadge } from "@/components/status";
 import { Card, EmptyState } from "@/components/ui/primitives";
 import type { recentRuns } from "@/lib/queries";
 import { formatUsd, timeAgo } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 type Row = Awaited<ReturnType<typeof recentRuns>>[number];
 
@@ -32,7 +33,14 @@ export function RunsTable({ rows, showAgent = true, empty }: { rows: Row[]; show
                   <span className="block truncate font-medium group-hover:text-primary">{ticket?.subject ?? "—"}</span>
                 </Link>
               </td>
-              {showAgent && <td className="hidden px-4 py-2.5 text-muted-foreground md:table-cell">{agentName}</td>}
+              {showAgent && (
+                <td className="hidden px-4 py-2.5 text-muted-foreground md:table-cell">
+                  <span className="flex items-center gap-2">
+                    <AgentOrb seed={agentName} size={12} />
+                    {agentName}
+                  </span>
+                </td>
+              )}
               <td className="hidden max-w-80 px-4 py-2.5 text-[13px] text-muted-foreground lg:table-cell">
                 <span className="line-clamp-2">{run.summary ?? (run.status === "awaiting_approval" ? "Waiting for approval" : "…")}</span>
               </td>

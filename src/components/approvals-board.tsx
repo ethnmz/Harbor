@@ -11,6 +11,7 @@ import { Badge, Card, EmptyState } from "@/components/ui/primitives";
 import type { Jsonified } from "@/lib/json";
 import type { listApprovals } from "@/lib/queries";
 import { timeAgo } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 type Row = Jsonified<Awaited<ReturnType<typeof listApprovals>>[number]>;
 export type ApprovalGroup = { runId: string; agentName: string; ticket: Row["ticket"]; items: Row[] };
@@ -58,6 +59,7 @@ export function ApprovalsBoard({ groups: incoming }: { groups: ApprovalGroup[] }
             <div className="flex flex-wrap items-start gap-3 border-b px-5 py-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <AgentOrb seed={g.agentName} size={14} />
                   <span className="font-medium text-foreground">{g.agentName}</span> wants to act on
                   <span className="font-mono">{g.ticket?.id}</span>
                   <span>· {timeAgo(g.items[0].approval.createdAt)}</span>

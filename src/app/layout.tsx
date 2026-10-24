@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { Newsreader } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
+
+const display = Newsreader({ subsets: ["latin"], variable: "--font-display", weight: ["400", "500"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "Harbor: enterprise-ready AI agents in a minute",
@@ -14,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable} font-sans antialiased`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bot, Check, Copy, FileCog, Hand, Play, RotateCcw, Rocket, Search, Settings2, UserRound, Wrench, X } from "lucide-react";
 import type { AuditEntry } from "@/lib/db/schema";
 import { cn, formatUsd, timeAgo } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 type D = Record<string, unknown>;
 
@@ -88,7 +89,7 @@ export function AuditList({ entries, dense }: { entries: AuditEntry[]; dense?: b
               <span className="font-medium">
                 {isAgent ? (
                   <>
-                    <Bot className="mr-0.5 inline size-3 -translate-y-px text-primary" />
+                    <AgentOrb seed={e.actor.slice(6)} size={10} className="mr-1 -translate-y-px align-middle" />
                     {e.actor.slice(6)}
                   </>
                 ) : (

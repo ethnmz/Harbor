@@ -14,6 +14,7 @@ import type { ToolCatalogEntry } from "@/lib/queries";
 import { cn, formatMs, formatUsd } from "@/lib/utils";
 import { ConfigCard, type BuilderWorkspace } from "./config-card";
 import { summarize, TestReport, useBatch } from "./test-report";
+import { AgentOrb } from "@/components/agent-orb";
 
 type Stage = "describe" | "generating" | "config" | "testing" | "live";
 
@@ -300,14 +301,12 @@ export function AgentBuilder({
       {stage === "live" && config && agentId && (
         <Card className="relative overflow-hidden px-6 py-10 text-center">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--success-soft),transparent_60%)]" />
-          <div className="relative mx-auto flex size-16 items-center justify-center">
-            <span className="absolute inset-0 rounded-full bg-success/20 animate-sonar" />
-            <span className="absolute inset-2 rounded-full bg-success/25 animate-sonar [animation-delay:0.8s]" />
-            <span className="relative flex size-11 items-center justify-center rounded-full bg-success text-white shadow-lg">
-              <Rocket className="size-5" />
-            </span>
+          <div className="relative mx-auto flex size-20 items-center justify-center">
+            <span className="absolute inset-1 rounded-[22px] bg-success/20 animate-sonar" />
+            <span className="absolute inset-3 rounded-[18px] bg-success/25 animate-sonar [animation-delay:0.8s]" />
+            <AgentOrb seed={config.name} size={52} shape="tile" className="drop-shadow-lg" />
           </div>
-          <h2 className="relative mt-5 text-xl font-semibold tracking-tight">{config.name} is live</h2>
+          <h2 className="display relative mt-5 text-[30px]">{config.name} is live</h2>
           <p className="relative mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
             It works new tickets as they arrive. Risky actions wait for approval, and every step lands in the activity log.
           </p>

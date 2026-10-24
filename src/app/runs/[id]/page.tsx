@@ -4,6 +4,7 @@ import { RunTimeline } from "@/components/run/timeline";
 import { PageHeader } from "@/components/ui/primitives";
 import { toJson } from "@/lib/json";
 import { getRunDetail } from "@/lib/queries";
+import { AgentOrb } from "@/components/agent-orb";
 
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,7 +15,8 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       <PageHeader
         eyebrow={
           <span>
-            <Link href={`/agents/${detail.agent.id}`} className="hover:text-foreground">
+            <Link href={`/agents/${detail.agent.id}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
+              <AgentOrb seed={detail.agent.name} size={12} />
               {detail.agent.name}
             </Link>{" "}
             / Run <span className="font-mono">{detail.run.id.slice(0, 8)}</span>

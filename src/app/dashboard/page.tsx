@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, EmptyState, PageHeader, Stat } from "@/components/ui/primitives";
 import { listAgents, pendingApprovalCount, recentAudit, recentSlack, runTimeline, totals } from "@/lib/queries";
 import { formatMs, formatUsd, pct, timeAgo } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 export default async function DashboardPage() {
   const [t, agents, pending, timeline, audit, slack] = await Promise.all([totals(), listAgents(), pendingApprovalCount(), runTimeline(), recentAudit(14), recentSlack(6)]);
@@ -79,7 +80,7 @@ export default async function DashboardPage() {
                 <tr key={agent.id} className="hover:bg-muted/30">
                   <td className="px-4 py-2.5">
                     <Link href={`/agents/${agent.id}`} className="flex items-center gap-2 font-medium hover:text-primary">
-                      {agent.name} <AgentStatusBadge status={agent.status} />
+                      <AgentOrb seed={agent.name} size={14} /> {agent.name} <AgentStatusBadge status={agent.status} />
                     </Link>
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{s.runs}</td>
