@@ -3,8 +3,8 @@ import { Settings2 } from "lucide-react";
 import { HarborMark } from "@/components/harbor-mark";
 import { Nav } from "@/components/nav";
 import { ResetDemoButton } from "@/components/reset-demo";
+import type { Workspace } from "@/lib/db/schema";
 import { integrationStatus, pendingApprovalCount } from "@/lib/queries";
-import { getWorkspace } from "@/lib/seed";
 
 /** Promo-style card in the sidebar: how close the workspace is to fully live. */
 function GoLiveCard() {
@@ -32,8 +32,8 @@ function GoLiveCard() {
   );
 }
 
-export async function AppShell({ children }: { children: React.ReactNode }) {
-  const [ws, pending] = await Promise.all([getWorkspace(), pendingApprovalCount()]);
+export async function AppShell({ ws, children }: { ws: Workspace; children: React.ReactNode }) {
+  const pending = await pendingApprovalCount();
   return (
     <div className="min-h-screen md:p-6">
       <div className="mx-auto flex min-h-screen max-w-[1640px] bg-card md:min-h-[calc(100vh-3rem)] md:rounded-[40px] md:shadow-[0_40px_90px_-40px_rgba(15,15,20,0.35)]">
