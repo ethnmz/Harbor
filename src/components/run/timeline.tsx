@@ -100,7 +100,9 @@ export function RunTimeline({ initial }: { initial: Detail }) {
             </Fact>
             <Fact label="Trigger">{run.trigger === "test" ? "Test run" : run.trigger === "live" ? "Live inbox" : "Manual"}</Fact>
             <Fact label="Model">{run.provider === "simulated" ? "Simulator" : run.model}</Fact>
-            <Fact label="Duration">{duration ? formatMs(duration) : "—"}</Fact>
+            <Fact label="Duration">
+              <span suppressHydrationWarning>{duration ? formatMs(duration) : "—"}</span>
+            </Fact>
             <Fact label="Est. cost">{formatUsd(run.costEstimate)}</Fact>
             <Fact label="Tokens">{(run.inputTokens + run.outputTokens).toLocaleString()}</Fact>
             <Fact label="Tool calls">

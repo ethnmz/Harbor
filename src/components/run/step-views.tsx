@@ -111,7 +111,7 @@ export function StepView({ step, approval, onDecided }: { step: StepJson; approv
         {status === "pending" && approval ? (
           <ApprovalActions approvalId={approval.id} onDecided={onDecided} />
         ) : (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground" suppressHydrationWarning>
             {approval?.decidedBy ?? String(output.decided_by ?? "")} {status} this
             {approval?.decidedAt ? ` at ${new Date(approval.decidedAt).toLocaleTimeString()}` : ""}
             {approval?.note ? `: "${approval.note}"` : ""}.
@@ -180,7 +180,7 @@ export function StepView({ step, approval, onDecided }: { step: StepJson; approv
   );
 }
 
-function ActionSummary({ name, input }: { name: string; input: Obj }) {
+export function ActionSummary({ name, input }: { name: string; input: Obj }) {
   if (name === "issue_refund")
     return (
       <div className="flex flex-wrap items-baseline gap-2 rounded-md border border-warning/20 bg-warning-soft/50 px-3 py-2">

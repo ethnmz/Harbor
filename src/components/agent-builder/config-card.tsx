@@ -19,14 +19,14 @@ const CONNECTION_ORDER = ["ticket_inbox", "serpapi", "slack", "billing", "email"
 
 export function ConfigCard({
   config,
-  onChange,
+  onChange = () => {},
   catalog,
   models,
   workspace,
   readOnly,
 }: {
   config: AgentConfig;
-  onChange: (c: AgentConfig) => void;
+  onChange?: (c: AgentConfig) => void;
   catalog: ToolCatalogEntry[];
   models: ModelInfo[];
   workspace: BuilderWorkspace;

@@ -10,8 +10,9 @@ import { configFromTemplate } from "./engine/config";
 /** Everything the agent builder needs from the server. */
 export async function builderProps(ws: Workspace) {
   const conns = await db.select().from(tools).where(eq(tools.workspaceId, ws.id));
+  const enabled = new Set(conns.filter((c) => c.enabled).map((c) => c.key));
   return {
-    catalog: TOOL_CATALOG,
+    catalog: TOOL_CATALOG.filter((t) => enabled.has(t.connection)),
     models: MODELS,
     llmLive: getProvider().live,
     workspace: {

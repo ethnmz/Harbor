@@ -52,6 +52,7 @@ type Ctx = {
   ticket: Ticket | null;
   system: string;
   toolSpecs: LlmToolSpec[];
+  disabledConnections: Set<string>;
   seq: number;
   totals: { inputTokens: number; outputTokens: number; cost: number; toolCalls: number };
 };
@@ -145,6 +146,8 @@ async function loadContext(run: Run): Promise<Ctx> {
     .select({ maxSeq: dsql<number>`coalesce(max(${runSteps.seq}), 0)::int` })
     .from(runSteps)
     .where(eq(runSteps.runId, run.id));
+  const conns = await db.select().from(toolConnections).where(eq(toolConnections.workspaceId, ws.id));
+  const disabledConnections = new Set(conns.filter((c) => !c.enabled).map((c) => c.key));
   const cfg = configFromTemplate(template);
   const toolSpecs: LlmToolSpec[] = [
     ...cfg.allowedTools.flatMap((name) => {
@@ -162,6 +165,7 @@ async function loadContext(run: Run): Promise<Ctx> {
     ticket: ticket ?? null,
     system: buildSystemPrompt(cfg, ws),
     toolSpecs,
+    disabledConnections,
     seq: maxSeq,
     totals: { inputTokens: run.inputTokens, outputTokens: run.outputTokens, cost: run.costEstimate, toolCalls: run.toolCalls },
   };
@@ -286,6 +290,10 @@ async function processToolCalls(ctx: Ctx, calls: ToolCall[]) {
     const tool = getTool(c.name);
     if (!tool || !ctx.cfg.allowedTools.includes(c.name)) {
       await block(c, "tool_not_allowed", `${c.name} is not permitted for this agent.`);
+      continue;
+    }
+    if (ctx.disabledConnections.has(tool.connection)) {
+      await block(c, "connection_disabled", `The ${tool.connection} connection is turned off for this workspace.`);
       continue;
     }
     if (c.name === "post_slack_message" && !g.allowedSlackChannels.includes(String(c.input.channel))) {
