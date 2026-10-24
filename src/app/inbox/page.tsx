@@ -1,4 +1,5 @@
 import { Bot, Inbox } from "lucide-react";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { categoryLabel, UrgencyBadge } from "@/components/status";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { listTickets } from "@/lib/queries";
@@ -14,6 +15,7 @@ export default async function InboxPage() {
         title="Support inbox"
         description={`Sandbox helpdesk for Tidewell. Sorted by the urgency your agents assigned. ${triaged} of ${rows.length} tickets triaged.`}
       />
+      <AutoRefresh />
       {!rows.length ? (
         <EmptyState icon={<Inbox />} title="Inbox is empty" />
       ) : (

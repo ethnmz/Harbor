@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Activity, Plus } from "lucide-react";
 import { AuditList } from "@/components/audit-list";
 import { RunsChart } from "@/components/runs-chart";
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
         }
       />
 
+      <AutoRefresh />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Agent runs" value={t.runs} hint={`${t.toolCalls} tool calls`} />
         <Stat label="Success rate" value={completed ? `${pct(t.handled, completed)}%` : "—"} tone="success" hint="handled without a human" />
