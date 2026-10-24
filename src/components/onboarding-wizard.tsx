@@ -44,9 +44,9 @@ export function OnboardingWizard({
   const [newChannel, setNewChannel] = useState("");
   const [newRule, setNewRule] = useState("");
 
-  async function test(key: string) {
+  async function test(key: string, body?: unknown) {
     setTests((t) => ({ ...t, [key]: { busy: true } }));
-    const res = await fetch(`/api/connections/${key}/test`, { method: "POST" });
+    const res = await fetch(`/api/connections/${key}/test`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
     const data = await res.json();
     setTests((t) => ({ ...t, [key]: data }));
   }
@@ -161,6 +161,16 @@ export function OnboardingWizard({
                 </p>
               </button>
             ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button size="sm" variant="outline" onClick={() => test("model", { model })} disabled={tests.model?.busy}>
+              {tests.model?.busy ? <Loader2 className="animate-spin" /> : null} Test model
+            </Button>
+            {tests.model?.message && (
+              <span className={cn("rounded-md px-2.5 py-1 text-xs", tests.model.ok ? (tests.model.live ? "bg-success-soft text-success" : "bg-muted text-muted-foreground") : "bg-danger-soft text-danger")}>
+                {tests.model.message}
+              </span>
+            )}
           </div>
         </Card>
       )}
