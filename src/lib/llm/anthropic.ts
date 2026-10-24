@@ -14,6 +14,10 @@ function getClient() {
 // Server-side fallback: if the model declines for policy reasons the API retries on
 // Anthropic's recommended substitute inside the same call.
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+// Opus 5.5 / Sonnet 5.5 return their between-tool-call notes as thinking blocks that are
+// empty by default; "updates" returns those notes as text so the run timeline can show them.
+const UPDATES_BETA = "thinking-display-updates-2026-08-18";
+const PROGRESS_UPDATE_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5"]);
 
 function toAnthropicMessages(messages: LlmMessage[]): BetaMessageParam[] {
   return messages.map((m) => {
@@ -33,7 +37,8 @@ function toAnthropicMessages(messages: LlmMessage[]): BetaMessageParam[] {
 function fromAnthropicContent(res: BetaMessage): LlmBlock[] {
   const out: LlmBlock[] = [];
   for (const block of res.content) {
-    if (block.type === "text") out.push({ type: "text", text: block.text });
+    if (block.type === "thinking" && block.thinking.trim()) out.push({ type: "text", text: block.thinking.trim() });
+    else if (block.type === "text") out.push({ type: "text", text: block.text });
     else if (block.type === "tool_use") out.push({ type: "tool_call", id: block.id, name: block.name, input: block.input as Record<string, unknown> });
   }
   return out;
@@ -57,6 +62,7 @@ export const anthropicProvider: LlmProvider = {
   live: true,
 
   async chat(req: ChatRequest): Promise<ChatResult> {
+    const updates = PROGRESS_UPDATE_MODELS.has(req.model);
     const res = await getClient().beta.messages.create({
       model: req.model,
       max_tokens: req.maxTokens ?? 16000,
@@ -69,7 +75,8 @@ export const anthropicProvider: LlmProvider = {
         strict: true,
       })),
       output_config: { effort: req.effort ?? "low" },
-      betas: [FALLBACK_BETA],
+      ...(updates ? { thinking: { type: "adaptive" as const, display: "updates" as const } } : {}),
+      betas: updates ? [FALLBACK_BETA, UPDATES_BETA] : [FALLBACK_BETA],
       fallbacks: "default",
     });
     return {

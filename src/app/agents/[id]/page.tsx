@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { asc } from "drizzle-orm";
 import { AgentActions } from "@/components/agent-actions";
 import { ConfigCard } from "@/components/agent-builder/config-card";
@@ -40,6 +41,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           </>
         }
       />
+      <AutoRefresh />
       <AgentActions
         agentId={agent.id}
         agentName={agent.name}
