@@ -68,12 +68,16 @@ export const anthropicProvider: LlmProvider = {
       max_tokens: req.maxTokens ?? 16000,
       system: req.system,
       messages: toAnthropicMessages(req.messages),
-      tools: req.tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
-        strict: true,
-      })),
+      ...(req.tools.length
+        ? {
+            tools: req.tools.map((t) => ({
+              name: t.name,
+              description: t.description,
+              input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
+              strict: true,
+            })),
+          }
+        : {}),
       output_config: { effort: req.effort ?? "low" },
       ...(updates ? { thinking: { type: "adaptive" as const, display: "updates" as const } } : {}),
       betas: updates ? [FALLBACK_BETA, UPDATES_BETA] : [FALLBACK_BETA],

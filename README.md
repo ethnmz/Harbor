@@ -128,16 +128,26 @@ npm run dev                       # http://localhost:3000
 |---|---|
 | `npm run db:setup` | Apply migrations, enable TimescaleDB extras on Tiger Cloud, seed the demo workspace (idempotent). |
 | `npm run db:reset` | Same, then wipe agents/runs/approvals/logs and re-seed the inbox. Same as the **Reset demo** button. |
+| `npm run doctor` | Pre-demo check of every connection: database, TimescaleDB hypertable, seed data, model key, SerpApi, Slack (`-- --slack` sends a test message). Deployed apps expose the same checks at `/api/health` (`?deep=1` also calls the model and SerpApi). |
 | `npm run smoke` | Engine end-to-end check against `DATABASE_URL`: generate → run an outage ticket → clone to a refund agent → pause for approval → approve → resume. |
 | `npm run db:generate` | Generate a new migration after editing `src/lib/db/schema.ts`. |
 | `npm run typecheck` / `npm run lint` / `npm run build` | The usual. |
 
-## Deploy (Vercel + Tiger Cloud)
+## Deploy (Vercel + Tiger Cloud), about 15 minutes
 
-1. Create a Tiger Cloud service and copy its connection string.
-2. From your machine: `DATABASE_URL="<tiger url>" npm run db:setup`. This creates the tables, the `audit_log` hypertable and its policies, and the seed data.
-3. Import the repo into Vercel and set `DATABASE_URL`, `ANTHROPIC_API_KEY`, `SERPAPI_API_KEY`, `SLACK_WEBHOOK_URL` (and optionally `HARBOR_APP_URL`).
-4. Deploy. Long-running routes declare `maxDuration = 300`, which needs Vercel Fluid compute (the default for new projects). If your plan caps lower, reduce it in `src/app/api/**/route.ts`. A 10-ticket test run takes roughly 15–40 s on a live model.
+1. **Tiger Cloud.** Create a service at [console.cloud.timescale.com](https://console.cloud.timescale.com) (the free tier is fine). Copy its connection string: `postgres://tsdbadmin:<password>@<id>.<project>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=require`.
+2. **Keys.** Anthropic API key ([console.anthropic.com](https://console.anthropic.com)); SerpApi key ([serpapi.com/manage-api-key](https://serpapi.com/manage-api-key)); Slack incoming webhook ([api.slack.com/apps](https://api.slack.com/apps) → Create app → Incoming Webhooks → add to `#support-urgent`).
+3. **Set up the database from your laptop.** Put the four values in `.env.local`, then:
+   ```bash
+   npm install
+   npm run db:setup          # tables, audit_log hypertable + policies, seed data
+   npm run doctor -- --slack # every line should be ✅
+   npm run dev               # optional: rehearse locally against Tiger
+   ```
+4. **Vercel.** [vercel.com/new](https://vercel.com/new) → import `ethnmz/Harbor` (branch `claude/gracious-turing-4a25i9`, or merge it to `main` first) → add `DATABASE_URL`, `ANTHROPIC_API_KEY`, `SERPAPI_API_KEY`, `SLACK_WEBHOOK_URL` under Environment Variables → Deploy. After the first deploy, add `HARBOR_APP_URL=https://<your-app>.vercel.app` so Slack buttons link back correctly, then redeploy.
+5. **Verify.** Open `https://<your-app>.vercel.app/api/health?deep=1`. `"ok": true` with Database, TimescaleDB, Model and SerpApi all `pass` means you're live. Then rehearse `docs/DEMO.md` once and press **Reset demo**.
+
+Long-running routes declare `maxDuration = 300`, which needs Vercel Fluid compute (the default for new projects). If your plan caps lower, reduce it in `src/app/api/**/route.ts`. A 10-ticket test run takes roughly 15–40 s on a live model.
 
 ## Demo
 
