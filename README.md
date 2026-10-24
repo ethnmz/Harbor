@@ -130,6 +130,7 @@ npm run dev                       # http://localhost:3000
 | `npm run db:reset` | Same, then wipe agents/runs/approvals/logs and re-seed the inbox. Same as the **Reset demo** button. |
 | `npm run doctor` | Pre-demo check of every connection: database, TimescaleDB hypertable, seed data, model key, SerpApi, Slack (`-- --slack` sends a test message). Deployed apps expose the same checks at `/api/health` (`?deep=1` also calls the model and SerpApi). |
 | `npm run smoke` | Engine end-to-end check against `DATABASE_URL`: generate → run an outage ticket → clone to a refund agent → pause for approval → approve → resume. |
+| `npm run e2e -- <url>` | Full HTTP test of a running app, local or deployed: every page, connection tests, config generation and policy, a 10-ticket test run, deploy, clone, approve, double and concurrent approvals, the $150 guardrail, reject, and the live inbox. It resets demo data before and after (`--keep` skips the final reset); `--no-slack` skips the Slack test message. |
 | `npm run db:generate` | Generate a new migration after editing `src/lib/db/schema.ts`. |
 | `npm run typecheck` / `npm run lint` / `npm run build` | The usual. |
 
@@ -163,7 +164,7 @@ src/lib/llm/             provider interface, Anthropic adapter, offline simulato
 src/lib/tools/           tool registry, SerpApi, Slack
 src/lib/engine/          config generation, policy enforcement, prompts, run loop + approvals
 src/lib/seed*.ts         demo workspace, 15 tickets, starter templates, Tiger setup
-scripts/                 db setup/reset, smoke test
+scripts/                 db setup/reset, smoke test, doctor, e2e suite
 drizzle/                 SQL migrations
 docs/                    demo script, Devpost draft
 ```

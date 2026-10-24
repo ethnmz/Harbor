@@ -12,7 +12,8 @@
     "db:setup": "tsx scripts/setup-db.ts",
     "db:reset": "tsx scripts/setup-db.ts --reset",
     "smoke": "tsx scripts/smoke.ts",
-    "doctor": "tsx scripts/doctor.ts"
+    "doctor": "tsx scripts/doctor.ts",
+    "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
