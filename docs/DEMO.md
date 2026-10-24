@@ -1,6 +1,6 @@
 # Harbor demo script (60–90 s)
 
-**Before judges arrive:** click **Reset demo** in the sidebar. Keep two tabs open: Harbor on `/agents/new`, and Slack on `#support-urgent` if `SLACK_WEBHOOK_URL` is set. Check that the sidebar's *Connections* box shows Model / SerpApi / Slack as **Live**. If the venue wifi dies, everything still runs on the labelled simulator.
+**Before judges arrive:** click **Reset demo** in the sidebar. Keep two tabs open: Harbor on `/agents/new`, and Slack on `#support-urgent` if `SLACK_WEBHOOK_URL` is set. Check that the sidebar card says **All systems live** (it says **Go live** and lists what's simulated otherwise). If the venue wifi dies, everything still runs on the labelled simulator.
 
 | Time | Say | Do |
 |---|---|---|
