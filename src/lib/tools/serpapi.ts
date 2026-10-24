@@ -90,7 +90,7 @@ export async function serpSearch(engine: "google" | "google_news", query: string
 /** Offline results, clearly labelled, pointing at real status pages. */
 function simulatedResults(engine: string, query: string): SearchHit[] {
   const q = query.toLowerCase();
-  const label = "Simulated result (set SERPAPI_API_KEY for live search)";
+  const label = "Simulated (no SerpApi key)";
   const hits: SearchHit[] = [];
   if (q.includes("cloudflare"))
     hits.push(
