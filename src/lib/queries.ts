@@ -1,5 +1,5 @@
 /** Read models for pages and polling endpoints. */
-import { and, asc, count, desc, eq, inArray, sql as dsql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notLike, sql as dsql } from "drizzle-orm";
 import { db, sql } from "./db";
 import { agents, approvals, auditLog, runSteps, runs, slackMessages, templates, tickets } from "./db/schema";
 import { getProvider } from "./llm";
@@ -165,31 +165,8 @@ export async function recentAudit(limit = 30) {
   return db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(limit);
 }
 
-export async function recentSlack(limit = 8) {
-  return db.select().from(slackMessages).orderBy(desc(slackMessages.createdAt)).limit(limit);
-}
-
 export async function listTemplates() {
   return db.select().from(templates).where(eq(templates.published, true)).orderBy(desc(templates.builtin), asc(templates.createdAt));
-}
-
-/** Runs per 15-minute bucket over the last 6 hours. Uses TimescaleDB's time_bucket on Tiger Cloud. */
-export async function runTimeline() {
-  const ts = await hasTimescale();
-  const bucket = ts ? dsql`time_bucket('15 minutes', ${runs.createdAt})` : dsql`date_bin('15 minutes', ${runs.createdAt}, timestamptz '2000-01-01')`;
-  const rows = await db
-    .select({
-      bucket: dsql<string>`${bucket}`.as("bucket"),
-      total: count(),
-      handled: dsql<number>`count(*) filter (where ${runs.outcome} = 'handled')::int`,
-      flagged: dsql<number>`count(*) filter (where ${runs.outcome} = 'flagged' or ${runs.status} = 'awaiting_approval')::int`,
-      failed: dsql<number>`count(*) filter (where ${runs.status} = 'failed')::int`,
-    })
-    .from(runs)
-    .where(dsql`${runs.createdAt} > now() - interval '6 hours'`)
-    .groupBy(dsql`1`)
-    .orderBy(dsql`1`);
-  return { engine: ts ? "time_bucket (TimescaleDB)" : "date_bin (Postgres)", rows };
 }
 
 export async function totals() {
@@ -207,6 +184,106 @@ export async function totals() {
     .from(runs);
   const [s] = await db.select({ n: count() }).from(runSteps).where(inArray(runSteps.toolName, ["news_search", "web_search"]));
   return { ...r, searches: s.n };
+}
+
+/**
+ * Handled vs. routed-to-a-human runs over an adaptive window (last hour, 6 hours or
+ * 24 hours depending on how far back activity goes), bucketed with TimescaleDB's
+ * time_bucket on Tiger Cloud and date_bin elsewhere.
+ */
+export async function runSeries() {
+  const ts = await hasTimescale();
+  const [{ first }] = await db
+    .select({ first: dsql<string | null>`min(${runs.createdAt})` })
+    .from(runs)
+    .where(dsql`${runs.createdAt} > now() - interval '24 hours'`);
+  const spanH = first ? (Date.now() - new Date(first).getTime()) / 3_600_000 : 0;
+  const preset =
+    spanH <= 1 ? { label: "Last hour", hours: 1, minutes: 5 } : spanH <= 6 ? { label: "Last 6 hours", hours: 6, minutes: 30 } : { label: "Last 24 hours", hours: 24, minutes: 120 };
+  const stride = `${preset.minutes} minutes`;
+  const bucket = ts ? dsql`time_bucket(${stride}::interval, ${runs.createdAt})` : dsql`date_bin(${stride}::interval, ${runs.createdAt}, timestamptz '2000-01-01')`;
+  const rows = await db
+    .select({
+      bucket: dsql<string>`${bucket}`.as("bucket"),
+      handled: dsql<number>`count(*) filter (where ${runs.outcome} = 'handled')::int`,
+      human: dsql<number>`count(*) filter (where ${runs.outcome} in ('flagged', 'failed') or ${runs.status} in ('awaiting_approval', 'failed'))::int`,
+    })
+    .from(runs)
+    .where(dsql`${runs.createdAt} > now() - make_interval(hours => ${preset.hours})`)
+    .groupBy(dsql`1`)
+    .orderBy(dsql`1`);
+  return { ...preset, engine: ts ? "time_bucket (TimescaleDB)" : "date_bin (Postgres)", rows };
+}
+
+export type FeedItem =
+  | {
+      kind: "approval";
+      at: Date;
+      agentName: string;
+      ticketId: string | null;
+      runId: string;
+      actions: { approvalId: string; action: string; args: Record<string, unknown> }[];
+    }
+  | { kind: "slack"; at: Date; agentName: string | null; channel: string; text: string; delivered: boolean; runId: string | null }
+  | { kind: "event"; at: Date; actor: string; agentName: string | null; text: string; target: string | null; href: string | null };
+
+/** What agents and people did recently: pending approvals, Slack posts and key decisions. */
+export async function activityFeed(limit = 7): Promise<FeedItem[]> {
+  const [pending, posts, events] = await Promise.all([
+    db
+      .select({ approval: approvals, agentName: agents.name })
+      .from(approvals)
+      .innerJoin(agents, eq(approvals.agentId, agents.id))
+      .where(eq(approvals.status, "pending"))
+      .orderBy(desc(approvals.createdAt))
+      .limit(8),
+    db
+      .select({ m: slackMessages, agentName: agents.name })
+      .from(slackMessages)
+      .leftJoin(runs, eq(slackMessages.runId, runs.id))
+      .leftJoin(agents, eq(runs.agentId, agents.id))
+      .where(notLike(slackMessages.text, ":raised_hand:%"))
+      .orderBy(desc(slackMessages.createdAt))
+      .limit(5),
+    db
+      .select()
+      .from(auditLog)
+      .where(inArray(auditLog.action, ["agent.deployed", "agent.cloned", "approval.approved", "approval.rejected"]))
+      .orderBy(desc(auditLog.createdAt))
+      .limit(5),
+  ]);
+  // One card per paused run, with its actions in the order the agent asked for them.
+  const byRun = new Map<string, Extract<FeedItem, { kind: "approval" }>>();
+  for (const { approval: a, agentName } of pending) {
+    const group = byRun.get(a.runId) ?? { kind: "approval" as const, at: a.createdAt, agentName, ticketId: a.ticketId, runId: a.runId, actions: [] };
+    group.actions.unshift({ approvalId: a.id, action: a.action, args: a.args });
+    byRun.set(a.runId, group);
+  }
+  const items: FeedItem[] = [
+    ...byRun.values(),
+    ...posts.map(({ m, agentName }) => ({
+      kind: "slack" as const,
+      at: m.createdAt,
+      agentName,
+      channel: m.channel,
+      text: m.text,
+      delivered: m.delivered,
+      runId: m.runId,
+    })),
+    ...events.map((e) => {
+      const d = e.details as Record<string, unknown>;
+      const text =
+        e.action === "agent.deployed"
+          ? `Deployed ${String(d.name)}`
+          : e.action === "agent.cloned"
+            ? `Cloned ${String(d.from)} into ${String(d.to)}`
+            : `${e.action === "approval.approved" ? "Approved" : "Rejected"} ${d.tool === "issue_refund" ? "a refund" : d.tool === "email_customer" ? "a customer email" : String(d.tool)}`;
+      const href = e.action.startsWith("approval.") ? `/runs/${String(d.run)}` : e.target ? `/agents/${e.target}` : null;
+      const agentName = e.action === "agent.deployed" ? String(d.name) : e.action === "agent.cloned" ? String(d.to) : null;
+      return { kind: "event" as const, at: e.createdAt, actor: e.actor, agentName, text, target: e.target, href };
+    }),
+  ];
+  return items.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limit);
 }
 
 export const TOOL_CATALOG = TOOLS.map(({ name, label, description, connection, risky }) => ({ name, label, description, connection, risky }));

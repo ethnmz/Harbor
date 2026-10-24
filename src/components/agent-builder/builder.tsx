@@ -41,16 +41,19 @@ export function AgentBuilder({
   workspace,
   llmLive,
   draft,
+  initialPrompt,
 }: {
   catalog: ToolCatalogEntry[];
   models: ModelInfo[];
   workspace: BuilderWorkspace;
   llmLive: boolean;
   draft?: BuilderDraft;
+  /** From the home composer: prefill and start generating right away. */
+  initialPrompt?: string;
 }) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>(draft ? "config" : "describe");
-  const [description, setDescription] = useState(draft?.prompt ?? "");
+  const [description, setDescription] = useState(draft?.prompt ?? initialPrompt ?? "");
   const [config, setConfig] = useState<AgentConfig | null>(draft?.config ?? null);
   const [gen, setGen] = useState<Pick<GenerateResult, "adjustments" | "reasoning" | "provider" | "latencyMs"> | null>(null);
   const [agentId, setAgentId] = useState<string | null>(draft?.agentId ?? null);
@@ -64,6 +67,16 @@ export function AgentBuilder({
   useEffect(() => {
     if (stage === "describe") inputRef.current?.focus();
   }, [stage]);
+
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (initialPrompt && !draft && !autoStarted.current) {
+      autoStarted.current = true;
+      void generate();
+    }
+    // Runs once on mount for a prompt handed over from the home composer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function call<T>(url: string, body?: unknown, method = "POST"): Promise<T> {
     const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
