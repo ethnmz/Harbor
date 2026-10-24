@@ -1,19 +1,23 @@
 @import "tailwindcss";
 
+/* Monochrome UI; color comes from the agents' gradient orbs and from status. */
 :root {
-  --background: #f8f9fa;
-  --foreground: #0b0f14;
+  --background: #fafaf9;
+  --foreground: #121212;
   --card: #ffffff;
-  --card-foreground: #0b0f14;
-  --muted: #f1f3f5;
-  --muted-foreground: #687076;
-  --border: #e4e7eb;
-  --input: #dfe3e8;
-  --primary: #0b6e8f;
+  --card-foreground: #121212;
+  --muted: #f3f3f1;
+  --muted-foreground: #6f6f6b;
+  --border: #e7e6e3;
+  --input: #dddcd8;
+  --primary: #141414;
   --primary-foreground: #ffffff;
-  --primary-soft: #e8f4f8;
-  --accent: #f1f6f8;
-  --ring: #0b6e8f;
+  --primary-soft: #efefec;
+  --accent: #f5f5f3;
+  --ring: #141414;
+  --tile: #f4f4f2;
+  --tile-hover: #ecebe8;
+  --ink: #141414;
   --success: #0f9f6e;
   --success-soft: #e7f7f0;
   --warning: #c27803;
@@ -22,7 +26,7 @@
   --danger-soft: #fdecef;
   --info: #2563eb;
   --info-soft: #eaf1fe;
-  --sidebar: #fcfcfd;
+  --sidebar: #fafaf9;
 }
 
 @theme inline {
@@ -39,6 +43,9 @@
   --color-primary-soft: var(--primary-soft);
   --color-accent: var(--accent);
   --color-ring: var(--ring);
+  --color-tile: var(--tile);
+  --color-tile-hover: var(--tile-hover);
+  --color-ink: var(--ink);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -50,10 +57,12 @@
   --color-sidebar: var(--sidebar);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-display);
 
   --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-sonar: sonar 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-float: float 9s ease-in-out infinite;
 
   @keyframes rise {
     from {
@@ -84,6 +93,15 @@
       background-position: 200% 0;
     }
   }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--r, 0deg));
+    }
+    50% {
+      transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 8deg));
+    }
+  }
 }
 
 * {
@@ -97,11 +115,26 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 .shimmer {
-  background: linear-gradient(90deg, var(--muted) 25%, #e9ecef 37%, var(--muted) 63%);
+  background: linear-gradient(90deg, var(--muted) 25%, #e9e8e5 37%, var(--muted) 63%);
   background-size: 400% 100%;
   animation: var(--animate-shimmer);
+}
+
+/* Display type: serif headline, optional gray continuation line. */
+.display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-sonar {
+    animation: none !important;
+  }
 }

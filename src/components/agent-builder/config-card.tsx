@@ -7,6 +7,7 @@ import type { AgentConfig } from "@/lib/engine/config";
 import type { ModelInfo } from "@/lib/llm/models";
 import type { ToolCatalogEntry } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 export type BuilderWorkspace = {
   company: string;
@@ -54,7 +55,8 @@ export function ConfigCard({
   return (
     <Card className="overflow-hidden">
       {/* Identity */}
-      <div className="grid gap-4 border-b bg-gradient-to-b from-primary-soft/60 to-card px-5 py-5 md:grid-cols-[1fr_240px]">
+      <div className="grid gap-4 border-b bg-tile/60 px-5 py-5 md:grid-cols-[auto_1fr_240px]">
+        <AgentOrb seed={config.name || "agent"} size={44} shape="tile" className="mt-0.5" />
         <div className="space-y-2">
           <Input
             aria-label="Agent name"

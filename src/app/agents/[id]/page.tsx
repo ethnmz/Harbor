@@ -14,6 +14,7 @@ import { builderProps } from "@/lib/page-data";
 import { agentStats, getAgent, recentRuns } from "@/lib/queries";
 import { getWorkspace } from "@/lib/seed";
 import { formatMs, formatUsd, pct, timeAgo } from "@/lib/utils";
+import { AgentOrb } from "@/components/agent-orb";
 
 export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,9 +29,10 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader
-        eyebrow="Agents"
+        eyebrow="Agent library"
         title={
-          <span className="flex items-center gap-3">
+          <span className="flex items-center gap-3.5">
+            <AgentOrb seed={agent.name} size={34} shape="tile" live={agent.status === "live"} />
             {agent.name} <AgentStatusBadge status={agent.status} />
           </span>
         }

@@ -108,13 +108,27 @@ export function EmptyState({ icon, title, children, action }: { icon?: React.Rea
   );
 }
 
-export function PageHeader({ title, description, actions, eyebrow }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; eyebrow?: React.ReactNode }) {
+export function PageHeader({
+  title,
+  tagline,
+  description,
+  actions,
+  eyebrow,
+}: {
+  title: React.ReactNode;
+  /** Gray continuation line under the title, V7-style. */
+  tagline?: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+  eyebrow?: React.ReactNode;
+}) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <div className="mb-1.5 text-xs font-medium text-muted-foreground">{eyebrow}</div>}
-        <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}
+        {eyebrow && <div className="mb-2 text-xs font-medium text-muted-foreground">{eyebrow}</div>}
+        <h1 className="display text-[32px] text-foreground">{title}</h1>
+        {tagline && <p className="display text-[32px] text-muted-foreground/70">{tagline}</p>}
+        {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -127,7 +141,7 @@ export function Stat({ label, value, hint, tone }: { label: string; value: React
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div
         className={cn(
-          "mt-1 text-2xl font-semibold tracking-tight tabular-nums",
+          "mt-1 text-[26px] font-medium tracking-tight tabular-nums",
           tone === "success" && "text-success",
           tone === "warning" && "text-warning",
           tone === "danger" && "text-danger",
