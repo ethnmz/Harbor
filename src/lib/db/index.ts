@@ -11,8 +11,17 @@ function client(): Sql {
   if (!cache.harborSql) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and point it at Tiger Cloud.");
-    // prepare:false keeps us compatible with Tiger's connection pooler (transaction mode).
-    cache.harborSql = postgres(url, { prepare: false, max: 5, idle_timeout: 20 });
+    const { hostname, searchParams } = new URL(url);
+    const local = ["localhost", "127.0.0.1", "::1"].includes(hostname);
+    const sslInUrl = searchParams.has("sslmode") || searchParams.has("ssl");
+    cache.harborSql = postgres(url, {
+      prepare: false, // compatible with Tiger's connection pooler (transaction mode)
+      max: 5,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      // Tiger Cloud requires TLS; don't depend on the pasted URL including ?sslmode=require.
+      ...(!local && !sslInUrl ? { ssl: "require" as const } : {}),
+    });
   }
   return cache.harborSql;
 }

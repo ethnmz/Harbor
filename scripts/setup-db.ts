@@ -7,15 +7,11 @@ config({ path: ".env.local" });
 config();
 
 async function main() {
-  const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-  const { db, sql } = await import("../src/lib/db");
-  const { getWorkspace, resetDemo, setupTimescale } = await import("../src/lib/seed");
+  const { sql } = await import("../src/lib/db");
+  const { runSetup } = await import("../src/lib/setup");
+  const { resetDemo } = await import("../src/lib/seed");
 
-  console.log("Applying migrations…");
-  await migrate(db, { migrationsFolder: "drizzle" });
-  await setupTimescale();
-  const ws = await getWorkspace();
-  console.log(`Workspace ready: ${ws.name}`);
+  await runSetup();
   if (process.argv.includes("--reset")) {
     await resetDemo();
     console.log("Demo data reset.");
