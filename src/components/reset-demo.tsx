@@ -3,17 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export function ResetDemoButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="w-full justify-start text-muted-foreground"
+    <button
+      type="button"
       disabled={busy}
+      className="flex h-10 w-full cursor-pointer items-center gap-3.5 rounded-xl px-3 text-[15px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
       onClick={async () => {
         if (!confirm("Reset the demo? This deletes all agents, runs, approvals and logs, and re-seeds the inbox. Workspace settings are kept.")) return;
         setBusy(true);
@@ -23,8 +21,8 @@ export function ResetDemoButton() {
         router.refresh();
       }}
     >
-      <RotateCcw className={busy ? "animate-spin" : ""} />
+      <RotateCcw className={busy ? "size-[19px] animate-spin" : "size-[19px]"} strokeWidth={1.8} />
       {busy ? "Resetting…" : "Reset demo"}
-    </Button>
+    </button>
   );
 }

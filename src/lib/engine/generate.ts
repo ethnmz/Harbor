@@ -141,9 +141,10 @@ export async function adaptConfig(ws: Workspace, source: AgentConfig, newName: s
 /** Offline generator: maps the description onto the closest starter template. */
 export function heuristicConfig(ws: Workspace, description: string, source?: AgentConfig) {
   const d = description.toLowerCase();
-  const key = /refund|charge|money back|reimburs/.test(d)
+  const words = d.replace(/#[a-z0-9_-]+/g, " "); // channel names like #support-urgent aren't intent
+  const key = /refund|charge|money back|reimburs/.test(words)
     ? "refund"
-    : /outage|down|incident/.test(d) && !/sort|triage|urgen|priorit|classif/.test(d)
+    : /outage|down|incident/.test(words) && !/sort|triage|urgen|priorit|classif/.test(words)
       ? "outage"
       : "triage";
   const t = BUILTIN_TEMPLATES.find((b) => b.key === key)!;
