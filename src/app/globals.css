@@ -72,7 +72,6 @@
   --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-sonar: sonar 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
-  --animate-float: float 9s ease-in-out infinite;
 
   @keyframes rise {
     from {
@@ -101,15 +100,6 @@
     }
     to {
       background-position: 200% 0;
-    }
-  }
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0) rotate(var(--r, 0deg));
-    }
-    50% {
-      transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 8deg));
     }
   }
 }
@@ -143,7 +133,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-float,
   .animate-sonar {
     animation: none !important;
   }
