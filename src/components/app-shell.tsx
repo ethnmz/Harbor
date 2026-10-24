@@ -35,38 +35,36 @@ function GoLiveCard() {
 export async function AppShell({ ws, children }: { ws: Workspace; children: React.ReactNode }) {
   const pending = await pendingApprovalCount();
   return (
-    <div className="min-h-screen md:p-6">
-      <div className="mx-auto flex min-h-screen max-w-[1640px] bg-card md:min-h-[calc(100vh-3rem)] md:rounded-[40px] md:shadow-[0_40px_90px_-40px_rgba(15,15,20,0.35)]">
-        <aside className="hidden w-[264px] shrink-0 flex-col border-r px-6 pt-10 pb-8 md:sticky md:top-6 md:flex md:h-[calc(100vh-3rem)] md:self-start">
-          <Link href="/dashboard" className="mb-12 flex items-center gap-2.5 px-3">
-            <HarborMark className="size-8 rounded-[10px]" />
-            <span className="text-[22px] font-semibold tracking-tight">Harbor</span>
-          </Link>
-          <Nav pendingApprovals={pending} />
-          <div className="mt-auto space-y-6">
-            <GoLiveCard />
-            <div className="space-y-1">
-              <Link href="/onboarding" className="flex h-10 items-center gap-3.5 rounded-xl px-3 text-[15px] text-muted-foreground transition-colors hover:text-foreground">
-                <Settings2 className="size-[19px]" strokeWidth={1.8} /> Workspace
-              </Link>
-              <ResetDemoButton />
-            </div>
+    <div className="flex min-h-screen bg-card">
+      <aside className="hidden w-[264px] shrink-0 flex-col border-r px-6 pt-10 pb-8 md:sticky md:top-0 md:flex md:h-screen md:self-start">
+        <Link href="/dashboard" className="mb-12 flex items-center gap-2.5 px-3">
+          <HarborMark className="size-8 rounded-[10px]" />
+          <span className="text-[22px] font-semibold tracking-tight">Harbor</span>
+        </Link>
+        <Nav pendingApprovals={pending} />
+        <div className="mt-auto space-y-6">
+          <GoLiveCard />
+          <div className="space-y-1">
+            <Link href="/onboarding" className="flex h-10 items-center gap-3.5 rounded-xl px-3 text-[15px] text-muted-foreground transition-colors hover:text-foreground">
+              <Settings2 className="size-[19px]" strokeWidth={1.8} /> Workspace
+            </Link>
+            <ResetDemoButton />
           </div>
-        </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center gap-2 border-b px-4 py-3 md:hidden">
-            <HarborMark />
-            <span className="font-semibold">Harbor</span>
-            <nav className="ml-auto flex gap-3 text-sm text-muted-foreground">
-              <Link href="/dashboard">Home</Link>
-              <Link href="/agents">Agents</Link>
-              <Link href="/approvals">Approvals{pending ? ` (${pending})` : ""}</Link>
-            </nav>
-          </header>
-          <main className="w-full min-w-0 flex-1 px-5 py-8 md:px-12 md:py-11" data-workspace={ws.company}>
-            {children}
-          </main>
         </div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-2 border-b px-4 py-3 md:hidden">
+          <HarborMark />
+          <span className="font-semibold">Harbor</span>
+          <nav className="ml-auto flex gap-3 text-sm text-muted-foreground">
+            <Link href="/dashboard">Home</Link>
+            <Link href="/agents">Agents</Link>
+            <Link href="/approvals">Approvals{pending ? ` (${pending})` : ""}</Link>
+          </nav>
+        </header>
+        <main className="w-full min-w-0 flex-1 px-5 py-8 md:px-12 md:py-11" data-workspace={ws.company}>
+          {children}
+        </main>
       </div>
     </div>
   );

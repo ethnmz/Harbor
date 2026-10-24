@@ -109,7 +109,7 @@
 }
 
 body {
-  background: var(--canvas);
+  background: var(--card);
   color: var(--foreground);
   font-feature-settings: "cv11", "ss01";
 }

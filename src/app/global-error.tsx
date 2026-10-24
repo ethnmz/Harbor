@@ -4,7 +4,7 @@
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", background: "#e3e3e5", margin: 0 }}>
+      <body style={{ fontFamily: "system-ui, sans-serif", background: "#ffffff", margin: 0 }}>
         <div style={{ maxWidth: 520, margin: "12vh auto", background: "#fff", borderRadius: 28, padding: 36 }}>
           <h1 style={{ fontSize: 24, margin: 0 }}>Harbor hit a server error</h1>
           <p style={{ color: "#6f6f6b", lineHeight: 1.6 }}>

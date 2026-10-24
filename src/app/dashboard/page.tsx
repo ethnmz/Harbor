@@ -149,7 +149,7 @@ export default async function HomePage() {
         </section>
       </div>
 
-      <aside className="border-t px-6 py-8 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:self-start xl:border-t-0 xl:border-l xl:py-6">
+      <aside className="border-t px-6 py-8 xl:sticky xl:top-0 xl:h-screen xl:self-start xl:border-t-0 xl:border-l xl:py-6">
         <RightRail featured={featured} feed={feed} people={{ [ws.ownerEmail]: ws.ownerName }} />
       </aside>
     </div>
