@@ -6,7 +6,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/primitives";
 
-export function ApprovalActions({ approvalId, onDecided, compact }: { approvalId: string; onDecided?: (resumed: boolean) => void; compact?: boolean }) {
+export function ApprovalActions({ approvalId, onDecided, compact }: { approvalId: string; onDecided?: (decision: "approved" | "rejected", resumed: boolean) => void; compact?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"approved" | "rejected" | null>(null);
   const [note, setNote] = useState("");
@@ -27,7 +27,7 @@ export function ApprovalActions({ approvalId, onDecided, compact }: { approvalId
       setError(data.error ?? "Could not record decision");
       return;
     }
-    onDecided?.(data.resumed);
+    onDecided?.(decision, data.resumed);
     router.refresh();
   }
 
