@@ -10,7 +10,6 @@ export default async function NewAgentPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader
-        eyebrow="Agents / New"
         title={draftData ? `Set up ${draftData.config.name}` : "Create an agent"}
         description="From a plain-English job description to a tested, policy-safe agent in about a minute."
       />

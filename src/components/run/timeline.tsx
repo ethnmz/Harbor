@@ -78,7 +78,7 @@ export function RunTimeline({ initial }: { initial: Detail }) {
         {ticket && (
           <Card className="p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="font-mono text-[11px] text-muted-foreground">{ticket.id}</span>
+              <span className="text-[11px] text-muted-foreground tabular-nums">{ticket.id}</span>
               <UrgencyBadge urgency={ticket.urgency} />
             </div>
             <div className="text-sm font-medium">{ticket.subject}</div>
@@ -111,8 +111,8 @@ export function RunTimeline({ initial }: { initial: Detail }) {
             </Fact>
           </dl>
         </Card>
-        <div className="flex gap-2.5 rounded-lg border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
-          <Database className="mt-0.5 size-3.5 shrink-0 text-primary" />
+        <div className="flex gap-3 rounded-2xl border bg-card px-4 py-3.5 text-[13px] text-muted-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <Database className="mt-0.5 size-4 shrink-0 text-foreground" />
           <span>
             Every step above is a row in <code className="font-mono">run_steps</code>, with inputs, outputs, latency and cost, plus approvals and an
             append-only audit log, stored in Tiger Postgres. Click <code className="font-mono">{"{ }"}</code> on any step to see the raw row.

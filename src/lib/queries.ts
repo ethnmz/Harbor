@@ -176,6 +176,7 @@ export async function totals() {
       handled: dsql<number>`count(*) filter (where ${runs.outcome} = 'handled')::int`,
       flagged: dsql<number>`count(*) filter (where ${runs.outcome} = 'flagged')::int`,
       failed: dsql<number>`count(*) filter (where ${runs.status} = 'failed')::int`,
+      waiting: dsql<number>`count(*) filter (where ${runs.status} = 'awaiting_approval')::int`,
       cost: dsql<number>`coalesce(sum(${runs.costEstimate}), 0)::float`,
       tokens: dsql<number>`coalesce(sum(${runs.inputTokens} + ${runs.outputTokens}), 0)::int`,
       toolCalls: dsql<number>`coalesce(sum(${runs.toolCalls}), 0)::int`,

@@ -61,7 +61,7 @@ export function ApprovalsBoard({ groups: incoming }: { groups: ApprovalGroup[] }
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <AgentOrb seed={g.agentName} size={14} />
                   <span className="font-medium text-foreground">{g.agentName}</span> wants to act on
-                  <span className="font-mono">{g.ticket?.id}</span>
+                  <span className="tabular-nums">{g.ticket?.id}</span>
                   <span>· {timeAgo(g.items[0].approval.createdAt)}</span>
                 </div>
                 <div className="mt-0.5 font-medium">{g.ticket?.subject}</div>

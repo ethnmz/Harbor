@@ -1,49 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowUp, Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Panel } from "@/components/ui/primitives";
+import { cn } from "@/lib/utils";
 
-/** Today's date in the viewer's locale (client-rendered to avoid server/client clock drift). */
-export function TodayLabel() {
+function Radio({ checked, onSelect, children }: { checked: boolean; onSelect: () => void; children: React.ReactNode }) {
   return (
-    <span suppressHydrationWarning className="text-[15px] text-foreground/80">
-      {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-    </span>
+    <label className="flex cursor-pointer items-center gap-2.5 text-[15px] font-medium">
+      <input type="radio" checked={checked} onChange={onSelect} className="peer sr-only" />
+      <span
+        className={cn(
+          "size-[18px] rounded-full border-2 transition-all peer-focus-visible:ring-4 peer-focus-visible:ring-foreground/10",
+          checked ? "border-[5px] border-foreground" : "border-input",
+        )}
+      />
+      {children}
+    </label>
   );
 }
 
-/** "Write a message" equivalent: describe a new agent and jump straight into generation. */
-export function AgentComposer() {
+/** Top-right card: describe a job and jump straight into generation, or browse templates. */
+export function BuildAgentCard() {
   const router = useRouter();
+  const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
+  const [mode, setMode] = useState<"scratch" | "template">("scratch");
+  const [hint, setHint] = useState(false);
   return (
-    <form
-      className="flex h-14 items-center gap-3 rounded-2xl bg-muted/70 pr-2 pl-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (text.trim().length < 8) return;
-        router.push(`/agents/new?prompt=${encodeURIComponent(text.trim())}`);
-      }}
-    >
-      <Sparkles className="size-[18px] shrink-0 text-muted-foreground" />
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Describe a new agent…"
-        aria-label="Describe a new agent"
-        className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/80"
-      />
-      <button
-        type="submit"
-        disabled={text.trim().length < 8}
-        aria-label="Generate agent"
-        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-white transition-opacity disabled:cursor-default disabled:opacity-25"
+    <Panel title="Build an agent" description="Describe the job in plain English.">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (mode === "template") return router.push("/agents?view=templates");
+          if (text.trim().length < 8) {
+            setHint(true);
+            return input.current?.focus();
+          }
+          router.push(`/agents/new?prompt=${encodeURIComponent(text.trim())}`);
+        }}
       >
-        <ArrowUp className="size-4" strokeWidth={2.4} />
-      </button>
-    </form>
+        <Label htmlFor="job">Job description</Label>
+        <Input
+          ref={input}
+          id="job"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setHint(false);
+          }}
+          placeholder="Triage new tickets and alert #support-urgent"
+          className="mt-2"
+          aria-describedby={hint ? "job-hint" : undefined}
+        />
+        {hint && (
+          <p id="job-hint" className="mt-2 text-[13px] text-danger">
+            Add a sentence about what the agent should do.
+          </p>
+        )}
+        <fieldset className="mt-5 flex flex-wrap gap-x-7 gap-y-3">
+          <legend className="sr-only">Start from</legend>
+          <Radio checked={mode === "scratch"} onSelect={() => setMode("scratch")}>
+            From scratch
+          </Radio>
+          <Radio checked={mode === "template"} onSelect={() => setMode("template")}>
+            From a template
+          </Radio>
+        </fieldset>
+        <Button type="submit" variant="outline" className="mt-6">
+          {mode === "template" ? "Browse templates" : "Generate"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 
@@ -54,8 +85,8 @@ export function ApproveAllButton({ approvalIds, reviewHref }: { approvalIds: str
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="flex flex-wrap items-center gap-2 pt-0.5">
-      <button
-        type="button"
+      <Button
+        size="sm"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -70,14 +101,13 @@ export function ApproveAllButton({ approvalIds, reviewHref }: { approvalIds: str
           setBusy(false);
           router.refresh();
         }}
-        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#141414] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-60"
       >
-        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+        {busy ? <Loader2 className="animate-spin" /> : <Check />}
         {approvalIds.length > 1 ? `Approve all ${approvalIds.length}` : "Approve"}
-      </button>
-      <Link href={reviewHref} className="inline-flex h-9 items-center rounded-full bg-white/70 px-4 text-[13px] font-medium hover:bg-white">
-        Review
-      </Link>
+      </Button>
+      <Button size="sm" variant="outline" asChild>
+        <Link href={reviewHref}>Review</Link>
+      </Button>
       {error && <span className="w-full text-xs text-danger">{error}</span>}
     </div>
   );

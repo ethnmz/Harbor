@@ -163,7 +163,7 @@ export function StepView({ step, approval, onDecided }: { step: StepJson; approv
               <span key={m}>{m}</span>
             ))}
             {step.latencyMs > 0 && <span>{formatMs(step.latencyMs)}</span>}
-            <span className="font-mono">#{step.seq}</span>
+            <span className="tabular-nums">#{step.seq}</span>
             <button type="button" onClick={() => setRaw(!raw)} className="cursor-pointer rounded px-1 hover:bg-muted hover:text-foreground" title="Raw log row">
               <Braces className="size-3" />
             </button>
@@ -273,7 +273,7 @@ function ToolBody({ name, input, output, ok }: { name: string; input: Obj; outpu
           <tbody>
             {invoices.map((inv) => (
               <tr key={inv.id} className="border-t">
-                <td className="py-1 font-mono">{inv.id}</td>
+                <td className="py-1 tabular-nums">{inv.id}</td>
                 <td>{inv.date}</td>
                 <td className="tabular-nums">{formatUsd(inv.amountUsd, 2)}</td>
                 <td className={cn(inv.status.includes("duplicate") && "font-medium text-warning")}>{inv.status}</td>
