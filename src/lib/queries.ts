@@ -1,7 +1,7 @@
 /** Read models for pages and polling endpoints. */
-import { and, asc, count, desc, eq, inArray, notLike, sql as dsql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, notLike, sql as dsql } from "drizzle-orm";
 import { db, sql } from "./db";
-import { agents, approvals, auditLog, runSteps, runs, slackMessages, templates, tickets } from "./db/schema";
+import { agents, approvals, auditLog, outboundEmails, refunds, runSteps, runs, slackMessages, templates, tickets } from "./db/schema";
 import { getProvider } from "./llm";
 import { connectionStatus, TOOLS } from "./tools";
 
@@ -160,6 +160,48 @@ export async function listTickets() {
       desc(tickets.receivedAt),
     );
 }
+
+/** Every ticket with its latest agent run, for the inbox list. */
+export async function inboxTickets() {
+  const [rows, latest] = await Promise.all([
+    listTickets(),
+    db
+      .selectDistinctOn([runs.ticketId], { ticketId: runs.ticketId, id: runs.id, status: runs.status, outcome: runs.outcome, summary: runs.summary, agentName: agents.name })
+      .from(runs)
+      .innerJoin(agents, eq(runs.agentId, agents.id))
+      .where(isNotNull(runs.ticketId))
+      .orderBy(runs.ticketId, desc(runs.createdAt)),
+  ]);
+  const byTicket = new Map(latest.map((r) => [r.ticketId, r]));
+  return rows.map((r) => ({ ...r, run: byTicket.get(r.ticket.id) ?? null }));
+}
+export type InboxRow = Awaited<ReturnType<typeof inboxTickets>>[number];
+
+/** One ticket as a conversation: the customer's message plus everything agents and people did about it. */
+export async function ticketThread(id: string) {
+  const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
+  if (!ticket) return null;
+  const runRows = await db
+    .select({ run: runs, agentName: agents.name })
+    .from(runs)
+    .innerJoin(agents, eq(runs.agentId, agents.id))
+    .where(eq(runs.ticketId, id))
+    .orderBy(asc(runs.createdAt));
+  const runIds = runRows.map((r) => r.run.id);
+  const [steps, pending, emails, refundRows] = await Promise.all([
+    runIds.length
+      ? db
+          .select()
+          .from(runSteps)
+          .where(and(inArray(runSteps.runId, runIds), eq(runSteps.type, "tool"), eq(runSteps.status, "ok"), inArray(runSteps.toolName, ["update_ticket", "news_search", "web_search", "post_slack_message"])))
+      : [],
+    runIds.length ? db.select().from(approvals).where(and(inArray(approvals.runId, runIds), eq(approvals.status, "pending"))) : [],
+    db.select().from(outboundEmails).where(eq(outboundEmails.ticketId, id)),
+    db.select().from(refunds).where(eq(refunds.ticketId, id)),
+  ]);
+  return { ticket, runs: runRows, steps, pending, emails, refunds: refundRows };
+}
+export type TicketThread = NonNullable<Awaited<ReturnType<typeof ticketThread>>>;
 
 export async function recentAudit(limit = 30) {
   return db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(limit);

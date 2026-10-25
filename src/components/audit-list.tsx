@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, Check, Copy, FileCog, Hand, Play, RotateCcw, Rocket, Search, Settings2, UserRound, Wrench, X } from "lucide-react";
+import { Bot, Check, Copy, FileCog, Hand, Mail, Play, Rocket, RotateCcw, Search, Settings2, UserRound, Wrench, X } from "lucide-react";
 import type { AuditEntry } from "@/lib/db/schema";
 import { cn, formatUsd, timeAgo } from "@/lib/utils";
 import { AgentOrb } from "@/components/agent-orb";
@@ -67,6 +67,12 @@ function describe(e: AuditEntry): { text: React.ReactNode; icon: React.ElementTy
       return { text: <>tested the <b>{e.target}</b> connection: {d.live ? "live" : "simulated"}</>, icon: Settings2 };
     case "demo.reset":
       return { text: <>reset the demo</>, icon: RotateCcw };
+    case "ticket.replied":
+      return { text: <>replied to {e.target}{d.resolved ? " and resolved it" : ""}</>, icon: Mail, href: `/inbox?t=${e.target}` };
+    case "ticket.resolved":
+      return { text: <>resolved {e.target}</>, icon: Check, href: `/inbox?t=${e.target}`, tone: "text-success" };
+    case "ticket.reopened":
+      return { text: <>reopened {e.target}</>, icon: RotateCcw, href: `/inbox?t=${e.target}` };
     default:
       return { text: e.action, icon: FileCog };
   }
