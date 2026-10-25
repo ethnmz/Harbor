@@ -14,7 +14,8 @@ import type { ToolCatalogEntry } from "@/lib/queries";
 import { cn, formatMs, formatUsd } from "@/lib/utils";
 import { ConfigCard, type BuilderWorkspace } from "./config-card";
 import { summarize, TestReport, useBatch } from "./test-report";
-import { AgentOrb } from "@/components/agent-orb";
+import { Mascot } from "@/components/mascots/mascot";
+import { SpeechBubble } from "@/components/mascots/speech-bubble";
 
 type Stage = "describe" | "generating" | "config" | "testing" | "live";
 
@@ -215,12 +216,17 @@ export function AgentBuilder({
               ))}
             </div>
             {stage === "generating" && (
-              <div className="mt-5 space-y-2.5 rounded-lg border bg-muted/30 p-4">
-                {["Reading your description", "Choosing the fewest tools that do the job", "Writing step-by-step instructions", "Applying company policy"].map((t, i) => (
-                  <div key={t} className="flex items-center gap-2 text-sm text-muted-foreground animate-rise" style={{ animationDelay: `${i * 450}ms` }}>
-                    <Loader2 className="size-3.5 animate-spin text-primary" /> {t}
+              <div className="mt-5 flex items-center gap-4">
+                <Mascot kinds={["murmur"]} width={112} height={112} label="Murmur is writing your agent" />
+                <SpeechBubble speaker="murmur" className="flex-1">
+                  <div className="space-y-1.5">
+                    {["Reading your description", "Choosing the fewest tools that do the job", "Writing step-by-step instructions", "Applying company policy"].map((t, i) => (
+                      <div key={t} className="flex items-center gap-2 text-[14px] text-muted-foreground animate-rise" style={{ animationDelay: `${i * 450}ms` }}>
+                        <Loader2 className="size-3.5 animate-spin text-foreground" /> {t}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </SpeechBubble>
               </div>
             )}
           </Card>
@@ -275,6 +281,14 @@ export function AgentBuilder({
 
       {stage === "testing" && (
         <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Mascot kinds={["facet"]} width={112} height={112} cue={report.finished ? 1 : 0} label="Facet is running the test" />
+            <SpeechBubble speaker="facet" className="flex-1">
+              {report.finished
+                ? `Done! ${report.handled + report.flagged + report.waiting} of ${report.total} worked end to end. Have a look, then deploy when you're happy.`
+                : `Running ${config?.name ?? "your agent"} on 10 sample tickets in parallel. Open any of them to watch it work.`}
+            </SpeechBubble>
+          </div>
           <TestReport rows={rows} />
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3">
             {report.finished ? (
@@ -314,11 +328,7 @@ export function AgentBuilder({
       {stage === "live" && config && agentId && (
         <Card className="relative overflow-hidden px-6 py-10 text-center">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--success-soft),transparent_60%)]" />
-          <div className="relative mx-auto flex size-20 items-center justify-center">
-            <span className="absolute inset-1 rounded-[22px] bg-success/20 animate-sonar" />
-            <span className="absolute inset-3 rounded-[18px] bg-success/25 animate-sonar [animation-delay:0.8s]" />
-            <AgentOrb seed={config.name} size={52} shape="tile" className="drop-shadow-lg" />
-          </div>
+          <Mascot kinds={["orbit"]} width={150} height={150} celebrate className="relative mx-auto" label="Orbit celebrating" />
           <h2 className="display relative mt-5 text-[30px]">{config.name} is live</h2>
           <p className="relative mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
             It works new tickets as they arrive. Risky actions wait for approval, and every step lands in the activity log.

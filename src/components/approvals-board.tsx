@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, CheckCheck, CheckCircle2, Hand, Loader2, XCircle } from "lucide-react";
+import { ArrowUpRight, CheckCheck, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { ApprovalActions } from "@/components/approval-actions";
 import { ActionSummary } from "@/components/run/step-views";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export function ApprovalsBoard({ groups: incoming }: { groups: ApprovalGroup[] }
 
   if (!groups.length)
     return (
-      <EmptyState icon={<Hand />} title="Nothing waiting for you">
+      <EmptyState mascot="orbit" title="Nothing waiting for you">
         When an agent wants to do something risky, like issuing a refund or emailing a customer, it pauses here until you decide.
       </EmptyState>
     );

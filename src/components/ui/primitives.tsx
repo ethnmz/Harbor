@@ -1,5 +1,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Mascot } from "@/components/mascots/mascot";
+import type { MascotKind } from "@/lib/mascots";
 import { cn } from "@/lib/utils";
 
 // Card ----------------------------------------------------------------------
@@ -142,10 +144,14 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   return <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{children}</kbd>;
 }
 
-export function EmptyState({ icon, title, children, action }: { icon?: React.ReactNode; title: string; children?: React.ReactNode; action?: React.ReactNode }) {
+export function EmptyState({ icon, mascot, title, children, action }: { icon?: React.ReactNode; mascot?: MascotKind; title: string; children?: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl bg-muted px-6 py-12 text-center">
-      {icon && <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-card text-foreground shadow-sm [&_svg]:size-5">{icon}</div>}
+      {mascot ? (
+        <Mascot kinds={[mascot]} width={120} height={120} className="mb-1" />
+      ) : (
+        icon && <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-card text-foreground shadow-sm [&_svg]:size-5">{icon}</div>
+      )}
       <p className="text-[15px] font-semibold">{title}</p>
       {children && <p className="mt-1 max-w-sm text-[14px] text-muted-foreground">{children}</p>}
       {action && <div className="mt-4">{action}</div>}

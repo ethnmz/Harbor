@@ -18,7 +18,7 @@ Harbor generates the agent, tests it on 10 real-looking tickets, and deploys it.
 
 | Step | What happens |
 |---|---|
-| **1. Workspace setup** (once) | Connect tools (support inbox, SerpApi web + news search, Slack, billing, email), pick a default model, set company policies. `/onboarding` |
+| **1. Workspace setup** (once) | A Duolingo-style flow, one question per screen, guided by three 3D glass mascots (Orbit, Facet, Murmur): company profile, tools (support inbox, SerpApi web + news search, Slack, billing, email), default model, approvals, guardrails, Slack channels and house rules. `/onboarding` |
 | **2. Describe** | Type the job in plain English. `/agents/new` |
 | **3. Generate** | The LLM turns it into a config: name, step-by-step instructions, allowed tools, tools needing approval, model, guardrails. Company policy is then **enforced in code** (e.g. `email_customer` always needs approval) and shown as an editable card. |
 | **4. Test run** | Runs the agent on 10 seeded tickets in parallel and shows a live report: handled / flagged / needs approval / failed, with reasons. |

@@ -41,6 +41,7 @@ export function Mascot({
   cue = 0,
   interactive = false,
   backdrop,
+  celebrate,
   className,
   label,
 }: {
@@ -50,6 +51,7 @@ export function Mascot({
   cue?: number;
   interactive?: boolean;
   backdrop?: boolean;
+  celebrate?: boolean;
   className?: string;
   label?: string;
 }) {
@@ -86,10 +88,11 @@ export function Mascot({
             kinds={kinds}
             cue={cue}
             interactive={interactive}
-            backdrop={backdrop ?? kinds.length === 1}
+            backdrop={backdrop ?? false}
             quality={Math.min(width / kinds.length, height) < 220 ? "low" : "high"}
             paused={!visible}
             still={still}
+            celebrate={celebrate}
             onReady={() => setReady(true)}
           />
         </div>
