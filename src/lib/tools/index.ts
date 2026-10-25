@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { outboundEmails, refunds, slackMessages, tickets, type Ticket, type Workspace } from "../db/schema";
 import { SERPAPI_COST_PER_SEARCH, serpSearch } from "./serpapi";
-import { appUrl, postToSlack } from "./slack";
+import { appUrl, isWorkflowWebhook, postToSlack, slackWebhookUrl } from "./slack";
 
 export type ToolContext = {
   runId: string;
@@ -229,10 +229,11 @@ export function connectionStatus(key: ConnectionKey): { live: boolean; detail: s
       return process.env.SERPAPI_API_KEY
         ? { live: true, detail: "Live Google + Google News via SerpApi" }
         : { live: false, detail: "Simulated results. Set SERPAPI_API_KEY" };
-    case "slack":
-      return process.env.SLACK_WEBHOOK_URL
-        ? { live: true, detail: "Posting via incoming webhook" }
-        : { live: false, detail: "Messages kept in Harbor. Set SLACK_WEBHOOK_URL" };
+    case "slack": {
+      const url = slackWebhookUrl();
+      if (!url) return { live: false, detail: "Messages kept in Harbor. Set SLACK_WEBHOOK_URL" };
+      return { live: true, detail: isWorkflowWebhook(url) ? "Posting via a Workflow Builder webhook" : "Posting via incoming webhook" };
+    }
     case "ticket_inbox":
       return { live: true, detail: "Sandbox helpdesk (seeded tickets)" };
     case "billing":
