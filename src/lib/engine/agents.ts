@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { agentVersions } from "../db/schema";
 import { db } from "../db";
 import { agents, templates, type Workspace } from "../db/schema";
 import { audit, HUMAN_ACTOR } from "../audit";
@@ -31,6 +32,14 @@ export async function updateAgentConfig(ws: Workspace, agentId: string, input: A
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!agent) throw new Error("Agent not found");
   const { config, adjustments } = enforcePolicy(input, ws);
+  // Versioned agents never mutate a snapshot: an edit becomes a new version.
+  const [versioned] = await db.select({ id: agentVersions.id }).from(agentVersions).where(eq(agentVersions.agentId, agentId)).limit(1);
+  if (versioned) {
+    const { createVersion } = await import("./versions");
+    await createVersion(ws, agentId, config, { actor: HUMAN_ACTOR });
+    await audit(HUMAN_ACTOR, "agent.updated", agentId, { tools: config.allowedTools, approvals: config.riskyTools, adjustments }, ws.id);
+    return { config, adjustments };
+  }
   await db
     .update(templates)
     .set({

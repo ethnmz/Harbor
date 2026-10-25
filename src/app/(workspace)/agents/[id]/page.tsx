@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { AgentActions } from "@/components/agent-actions";
 import { ConfigCard } from "@/components/agent-builder/config-card";
 import { RunsTable } from "@/components/runs-table";
@@ -22,7 +22,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const row = await getAgent(id);
   if (!row) notFound();
   const ws = await getWorkspace();
-  const [runs, stats, allTickets, props] = await Promise.all([recentRuns({ agentId: id, limit: 30 }), agentStats(), db.select().from(tickets).orderBy(asc(tickets.id)), builderProps(ws)]);
+  const [runs, stats, allTickets, props] = await Promise.all([recentRuns({ agentId: id, limit: 30 }), agentStats(), db.select().from(tickets).where(eq(tickets.sandbox, false)).orderBy(asc(tickets.id)), builderProps(ws)]);
   const s = stats.get(id) ?? { runs: 0, handled: 0, flagged: 0, failed: 0, waiting: 0, cost: 0, avgMs: 0, lastRunAt: null };
   const openInbox = allTickets.filter((t) => t.status === "open" && !t.inTestSet).length;
   const { agent, template } = row;

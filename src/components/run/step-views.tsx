@@ -91,10 +91,12 @@ export function StepView({ step, approval, onDecided }: { step: StepJson; approv
   } else if (step.type === "tool") {
     const m = TOOL_META[step.toolName ?? ""] ?? { icon: Braces, label: step.toolName };
     icon = m.icon;
-    tone = step.status === "ok" ? "default" : "danger";
+    const intercepted = step.status === "intercepted";
+    tone = step.status === "ok" ? "default" : intercepted ? "warning" : "danger";
     title = (
       <>
         {m.label} <code className="ml-1 font-mono text-[11px] font-normal text-muted-foreground">{step.toolName}</code>
+        {intercepted && <span className="ml-2 text-[12px] font-medium text-warning">Sandbox: would have run, intercepted</span>}
       </>
     );
     body = <ToolBody name={step.toolName ?? ""} input={input} output={output} ok={step.status === "ok"} />;
@@ -104,11 +106,18 @@ export function StepView({ step, approval, onDecided }: { step: StepJson; approv
     icon = Hand;
     const status = approval?.status ?? step.status;
     tone = status === "approved" ? "success" : status === "rejected" ? "danger" : "warning";
-    title = status === "pending" ? "Waiting for manager approval" : status === "approved" ? "Approved by a manager" : "Rejected by a manager";
+    title =
+      status === "held"
+        ? "Held for manager approval (sandbox, not executed)"
+        : status === "pending"
+          ? "Waiting for manager approval"
+          : status === "approved"
+            ? "Approved by a manager"
+            : "Rejected by a manager";
     body = (
       <div className="space-y-3">
         <ActionSummary name={step.toolName ?? ""} input={input} />
-        {status === "pending" && approval ? (
+        {status === "held" ? null : status === "pending" && approval ? (
           <ApprovalActions approvalId={approval.id} onDecided={onDecided} />
         ) : (
           <p className="text-xs text-muted-foreground" suppressHydrationWarning>

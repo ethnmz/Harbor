@@ -14,6 +14,9 @@ export function buildSystemPrompt(cfg: AgentConfig, ws: Workspace) {
     "## Company policies (set by the workspace admin; they override everything else)",
     ...rules.map((r) => `- ${r}`),
     `- Refund limit: $${g.maxRefundUsd} per refund. Anything larger must be escalated to a human, not refunded.`,
+    ...((g.emailRecipients ?? "ticket_customer") !== "any" ? ["- Emails may only go to the customer on the ticket. Leave `to` empty."] : []),
+    ...(g.blockForeignEmails ? ["- Never include another person's email address in an email or Slack message."] : []),
+    ...(g.requireInvoiceForRefund ? ["- A refund must name an invoice that belongs to this customer (check with lookup_customer)."] : []),
     g.allowedSlackChannels.length ? `- You may only post to these Slack channels: ${g.allowedSlackChannels.join(", ")}.` : "- You may not post to Slack.",
     cfg.riskyTools.length
       ? `- These actions need a manager's approval: ${cfg.riskyTools.join(", ")}. Calling them pauses the run until a manager decides. That is expected; do not try to work around it.`

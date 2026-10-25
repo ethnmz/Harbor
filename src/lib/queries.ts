@@ -1,9 +1,13 @@
 /** Read models for pages and polling endpoints. */
-import { and, asc, count, desc, eq, inArray, isNotNull, notLike, sql as dsql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, notLike, sql as dsql } from "drizzle-orm";
 import { db, sql } from "./db";
 import { agents, approvals, auditLog, outboundEmails, refunds, runSteps, runs, slackMessages, templates, tickets } from "./db/schema";
 import { getProvider } from "./llm";
 import { connectionStatus, TOOLS } from "./tools";
+
+/** Red-team and verification runs execute sandboxed and stay out of stats, feeds and the inbox. */
+export const SANDBOX_TRIGGERS = ["redteam", "verify"];
+const realRuns = notInArray(runs.trigger, SANDBOX_TRIGGERS);
 
 export function integrationStatus() {
   const llm = getProvider();
@@ -58,6 +62,7 @@ export async function agentStats() {
       lastRunAt: dsql<Date | null>`max(${runs.createdAt})`,
     })
     .from(runs)
+    .where(realRuns)
     .groupBy(runs.agentId);
   return new Map(rows.map((r) => [r.agentId, { ...r, lastRunAt: r.lastRunAt ? new Date(r.lastRunAt) : null }]));
 }
@@ -73,7 +78,7 @@ export async function recentRuns(opts: { agentId?: string; limit?: number } = {}
     .from(runs)
     .innerJoin(agents, eq(runs.agentId, agents.id))
     .leftJoin(tickets, eq(runs.ticketId, tickets.id))
-    .where(opts.agentId ? eq(runs.agentId, opts.agentId) : undefined)
+    .where(and(realRuns, opts.agentId ? eq(runs.agentId, opts.agentId) : undefined))
     .orderBy(desc(runs.createdAt))
     .limit(opts.limit ?? 25);
 }
@@ -155,6 +160,7 @@ export async function listTickets() {
     .select({ ticket: tickets, agentName: agents.name })
     .from(tickets)
     .leftJoin(agents, eq(tickets.handledByAgentId, agents.id))
+    .where(eq(tickets.sandbox, false))
     .orderBy(
       dsql`case ${tickets.urgency} when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 when 'low' then 3 else 4 end`,
       desc(tickets.receivedAt),
@@ -169,7 +175,7 @@ export async function inboxTickets() {
       .selectDistinctOn([runs.ticketId], { ticketId: runs.ticketId, id: runs.id, status: runs.status, outcome: runs.outcome, summary: runs.summary, agentName: agents.name })
       .from(runs)
       .innerJoin(agents, eq(runs.agentId, agents.id))
-      .where(isNotNull(runs.ticketId))
+      .where(and(isNotNull(runs.ticketId), realRuns))
       .orderBy(runs.ticketId, desc(runs.createdAt)),
   ]);
   const byTicket = new Map(latest.map((r) => [r.ticketId, r]));
@@ -185,7 +191,7 @@ export async function ticketThread(id: string) {
     .select({ run: runs, agentName: agents.name })
     .from(runs)
     .innerJoin(agents, eq(runs.agentId, agents.id))
-    .where(eq(runs.ticketId, id))
+    .where(and(eq(runs.ticketId, id), realRuns))
     .orderBy(asc(runs.createdAt));
   const runIds = runRows.map((r) => r.run.id);
   const [steps, pending, emails, refundRows] = await Promise.all([
@@ -224,7 +230,8 @@ export async function totals() {
       toolCalls: dsql<number>`coalesce(sum(${runs.toolCalls}), 0)::int`,
       avgMs: dsql<number>`coalesce(avg(extract(epoch from (${runs.endedAt} - ${runs.startedAt})) * 1000) filter (where ${runs.endedAt} is not null), 0)::int`,
     })
-    .from(runs);
+    .from(runs)
+    .where(realRuns);
   const [s] = await db.select({ n: count() }).from(runSteps).where(inArray(runSteps.toolName, ["news_search", "web_search"]));
   return { ...r, searches: s.n };
 }
@@ -239,7 +246,7 @@ export async function runSeries() {
   const [{ first }] = await db
     .select({ first: dsql<string | null>`min(${runs.createdAt})` })
     .from(runs)
-    .where(dsql`${runs.createdAt} > now() - interval '24 hours'`);
+    .where(and(realRuns, dsql`${runs.createdAt} > now() - interval '24 hours'`));
   const spanH = first ? (Date.now() - new Date(first).getTime()) / 3_600_000 : 0;
   const preset =
     spanH <= 1 ? { label: "Last hour", hours: 1, minutes: 5 } : spanH <= 6 ? { label: "Last 6 hours", hours: 6, minutes: 30 } : { label: "Last 24 hours", hours: 24, minutes: 120 };
@@ -252,7 +259,7 @@ export async function runSeries() {
       human: dsql<number>`count(*) filter (where ${runs.outcome} in ('flagged', 'failed') or ${runs.status} in ('awaiting_approval', 'failed'))::int`,
     })
     .from(runs)
-    .where(dsql`${runs.createdAt} > now() - make_interval(hours => ${preset.hours})`)
+    .where(and(realRuns, dsql`${runs.createdAt} > now() - make_interval(hours => ${preset.hours})`))
     .groupBy(dsql`1`)
     .orderBy(dsql`1`);
   return { ...preset, engine: ts ? "time_bucket (TimescaleDB)" : "date_bin (Postgres)", rows };
