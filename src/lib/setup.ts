@@ -31,8 +31,8 @@ export async function loadWorkspaceState(): Promise<DbState> {
     // Drizzle wraps driver errors ("Failed query: …"); the Postgres code and real reason are on the cause.
     let root = e as Error & { code?: string; cause?: unknown };
     while (root.cause instanceof Error) root = root.cause as typeof root;
-    // 42P01 = undefined_table: connected fine, but migrations haven't run.
-    if (root.code === "42P01") return { ok: false, reason: "not_setup", message: root.message };
+    // 42P01 = undefined_table, 42703 = undefined_column: connected fine, but migrations haven't run (or are behind).
+    if (root.code === "42P01" || root.code === "42703") return { ok: false, reason: "not_setup", message: root.message };
     console.error("Harbor database unavailable:", e);
     return { ok: false, reason: "unreachable", message: root.message || String(e) };
   }
