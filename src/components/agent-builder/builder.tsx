@@ -281,8 +281,8 @@ export function AgentBuilder({
         ? `Done! ${worked} of ${report.total} worked end to end${report.flagged + report.waiting ? `, and ${report.flagged + report.waiting} went to a person, as they should` : ""}.`
         : `Running ${name} on 10 sample tickets in parallel. Nothing real is sent until you deploy.`,
       title: report.finished ? "Test complete" : "Testing on 10 tickets",
-      subtitle: "Open any ticket to watch every step the agent took.",
-      body: <TestReport rows={rows} />,
+      subtitle: "Open any timeline (it opens in a new tab) to watch every step the agent took.",
+      body: <TestReport rows={rows} newTab />,
       cta: report.finished ? "Continue" : (
         <>
           <Loader2 className="animate-spin" /> Testing…
@@ -369,6 +369,11 @@ export function AgentBuilder({
               {step === "live" && !deployed && agentId && (
                 <Button variant="ghost" size="lg" className="rounded-full px-6" asChild>
                   <Link href={`/agents/${agentId}`}>Keep as draft</Link>
+                </Button>
+              )}
+              {step === "test" && report.finished && report.waiting > 0 && (
+                <Button variant="ghost" size="lg" className="rounded-full px-6" asChild>
+                  <Link href="/approvals">Review approvals ({report.waiting})</Link>
                 </Button>
               )}
               {step === "live" && deployed && (

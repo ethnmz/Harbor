@@ -82,7 +82,8 @@ export function summarize(rows: BatchRow[]) {
   };
 }
 
-export function TestReport({ rows }: { rows: BatchRow[] }) {
+/** `newTab` keeps the user in a flow (the builder) when they open a timeline. */
+export function TestReport({ rows, newTab }: { rows: BatchRow[]; newTab?: boolean }) {
   const s = summarize(rows);
   return (
     <Card className="overflow-hidden">
@@ -128,7 +129,7 @@ export function TestReport({ rows }: { rows: BatchRow[] }) {
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <RunBadge status={r.status} outcome={r.outcome} />
-                <Link href={`/runs/${r.id}`} className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary">
+                <Link href={`/runs/${r.id}`} target={newTab ? "_blank" : undefined} className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary">
                   Timeline <ArrowUpRight className="size-3" />
                 </Link>
               </div>
