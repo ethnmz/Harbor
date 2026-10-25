@@ -303,13 +303,15 @@ export type MascotSceneProps = {
 
 export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, quality = "high", paused = false, still = false, onReady }: MascotSceneProps) {
   const n = kinds.length;
-  const q = quality === "high" ? { samples: 6, resolution: 512 } : { samples: 3, resolution: 256 };
+  // Each glass body re-renders the scene for its refraction, so cost grows with the number of
+  // mascots squared; small and group views use a much lighter buffer.
+  const q = quality === "high" && n === 1 ? { samples: 6, resolution: 512 } : { samples: 2, resolution: n > 1 ? 160 : 256 };
   const tints = useMemo(() => kinds.map((k) => tintOf(MASCOTS[k].color)), [kinds]);
   const lead = MASCOTS[kinds[0]].color;
   return (
     <Canvas
       camera={{ position: [0, 0, 5.6 + (n - 1) * 2.8], fov: 35 }}
-      dpr={[1, 1.5]}
+      dpr={n > 1 ? 1 : [1, 1.5]}
       gl={{ alpha: true, antialias: true }}
       frameloop={paused ? "never" : still ? "demand" : "always"}
       onCreated={() => onReady?.()}

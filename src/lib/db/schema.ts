@@ -24,7 +24,11 @@ export type WorkspacePolicies = {
   allowedSlackChannels: string[];
   /** Plain-English rules injected into every agent's instructions. */
   rules: string[];
+  /** From onboarding; kept in this JSON column so it needs no migration. Given to the config generator as context. */
+  profile?: CompanyProfile;
 };
+
+export type CompanyProfile = { size: string; kinds: string[] };
 
 export type Guardrails = {
   maxSteps: number;
