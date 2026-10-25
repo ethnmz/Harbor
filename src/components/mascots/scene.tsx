@@ -236,9 +236,9 @@ function Reactive({ interactive, children }: { interactive: boolean; children: R
 }
 
 /** A hop with a squash and a full turn whenever `cue` changes (step transitions, celebrations). */
-function Hop({ cue, delay, children }: { cue: number; delay: number; children: ReactNode }) {
+function Hop({ cue, delay, celebrate, children }: { cue: number; delay: number; celebrate: boolean; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
-  const seen = useRef(cue);
+  const seen = useRef(celebrate ? Number.NaN : cue);
   const start = useRef<number | null>(null);
   useFrame(({ clock }) => {
     const g = ref.current;
@@ -298,10 +298,12 @@ export type MascotSceneProps = {
   quality?: "high" | "low";
   paused?: boolean;
   still?: boolean;
+  /** Hop once on mount (e.g. "your agent is live"). */
+  celebrate?: boolean;
   onReady?: () => void;
 };
 
-export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, quality = "high", paused = false, still = false, onReady }: MascotSceneProps) {
+export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, quality = "high", paused = false, still = false, celebrate = false, onReady }: MascotSceneProps) {
   const n = kinds.length;
   // Each glass body re-renders the scene for its refraction, so cost grows with the number of
   // mascots squared; small and group views use a much lighter buffer.
@@ -333,7 +335,7 @@ export default function MascotScene({ kinds, cue = 0, interactive = false, backd
           <group key={kind} position={[(i - (n - 1) / 2) * 2.75, 0, 0]}>
             {backdrop && <Backdrop color={color} />}
             <Float speed={still ? 0 : 2} rotationIntensity={still ? 0 : 0.25} floatIntensity={still ? 0 : 0.6}>
-              <Hop cue={cue} delay={i * 0.09}>
+              <Hop cue={cue} delay={i * 0.09} celebrate={celebrate}>
                 <Reactive interactive={interactive}>
                   <Agent color={color} bg={tints[i]} q={q} />
                 </Reactive>

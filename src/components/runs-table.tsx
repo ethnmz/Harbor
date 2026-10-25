@@ -9,7 +9,7 @@ import { AgentOrb } from "@/components/agent-orb";
 type Row = Awaited<ReturnType<typeof recentRuns>>[number];
 
 export function RunsTable({ rows, showAgent = true, empty }: { rows: Row[]; showAgent?: boolean; empty?: React.ReactNode }) {
-  if (!rows.length) return <EmptyState title="No runs yet">{empty ?? "Runs appear here as soon as an agent works a ticket."}</EmptyState>;
+  if (!rows.length) return <EmptyState mascot="facet" title="No runs yet">{empty ?? "Runs appear here as soon as an agent works a ticket."}</EmptyState>;
   const now = Date.now();
   return (
     <div className="overflow-hidden rounded-2xl border">

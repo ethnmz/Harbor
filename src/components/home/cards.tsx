@@ -43,7 +43,12 @@ const runLabel = (run: RunRow["run"]) =>
 export function AgentCard({ featured, lastRun, defaultModel }: { featured: AgentRow | null; lastRun: RunRow | null; defaultModel: string }) {
   if (!featured)
     return (
-      <Panel variant="glass" title="No agents yet" description="Describe a job and Harbor builds, tests and deploys an agent in about a minute.">
+      <Panel
+        variant="glass"
+        title="No agents yet"
+        description="Describe a job and Harbor builds, tests and deploys an agent in about a minute."
+        actions={<Mascot kinds={["murmur"]} width={88} height={88} className="-my-4" label="Murmur" />}
+      >
         <Label htmlFor="agent-model">Default model</Label>
         <Field id="agent-model" value={modelInfo(defaultModel).label} action={{ href: "/onboarding", label: "Workspace settings", icon: SlidersHorizontal }} />
         <Label htmlFor="agent-last" className="mt-5 block">
