@@ -18,7 +18,7 @@ const ITEMS: Item[] = [
 
 const isActive = (item: Item, path: string) => (item.match ? item.match(path) : path === item.href || path.startsWith(item.href + "/"));
 
-/** One square icon button on the black rail, with its label as a hover tip. */
+/** One square icon button on the glass rail, with its label as a hover tip. */
 export function RailButton({
   href,
   label,
@@ -41,12 +41,14 @@ export function RailButton({
       aria-current={active ? "page" : undefined}
       className={cn(
         "group relative flex size-12 shrink-0 items-center justify-center rounded-xl transition-colors",
-        active ? "bg-rail-active text-white" : "text-rail-icon hover:bg-rail-active/60 hover:text-white",
+        active
+          ? "bg-white text-foreground shadow-[0_4px_14px_-4px_rgba(16,24,40,0.18),inset_0_1px_0_white] ring-1 ring-black/5"
+          : "text-foreground/50 hover:bg-white/60 hover:text-foreground",
       )}
     >
       <Icon className="size-[21px]" strokeWidth={active ? 2.2 : 1.8} />
       {!!count && (
-        <span className="absolute top-1.5 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-series-3 px-1 text-[11px] font-bold text-rail tabular-nums ring-2 ring-rail">
+        <span className="absolute top-1.5 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-series-3 px-1 text-[11px] font-bold text-white tabular-nums ring-2 ring-white">
           {count}
         </span>
       )}

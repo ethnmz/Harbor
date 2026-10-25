@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BadgeDollarSign, Mail, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, BadgeDollarSign, Mail } from "lucide-react";
 import { AgentOrb } from "@/components/agent-orb";
 import { Mascot } from "@/components/mascots/mascot";
 import { Mrkdwn } from "@/components/slack-preview";
@@ -49,12 +49,10 @@ export function AgentCard({ featured, lastRun, defaultModel }: { featured: Agent
         description="Describe a job and Harbor builds, tests and deploys an agent in about a minute."
         actions={<Mascot kinds={["murmur"]} width={88} height={88} className="-my-4" label="Harbor mascot" />}
       >
-        <Label htmlFor="agent-model">Default model</Label>
-        <Field id="agent-model" value={modelInfo(defaultModel).label} action={{ href: "/onboarding", label: "Workspace settings", icon: SlidersHorizontal }} />
-        <Label htmlFor="agent-last" className="mt-5 block">
-          Last run
-        </Label>
-        <Field id="agent-last" value={<span className="text-muted-foreground">No runs yet</span>} />
+        <Button asChild>
+          <Link href="/agents/new">Create your first agent</Link>
+        </Button>
+        <span className="sr-only">Default model: {modelInfo(defaultModel).label}</span>
       </Panel>
     );
   const { agent, template, stats } = featured;
@@ -70,11 +68,7 @@ export function AgentCard({ featured, lastRun, defaultModel }: { featured: Agent
       description={stats.runs ? `${stats.runs} ${stats.runs === 1 ? "run" : "runs"} · ${pct(stats.handled, stats.runs)}% handled without a person.` : template.description}
       actions={<AgentStatusBadge status={agent.status} />}
     >
-      <Label htmlFor="agent-model">Model</Label>
-      <Field id="agent-model" value={modelInfo(template.model).label} action={{ href: `/agents/new?draft=${agent.id}`, label: "Edit and re-test", icon: SlidersHorizontal }} />
-      <Label htmlFor="agent-last" className="mt-5 block">
-        Last run
-      </Label>
+      <Label htmlFor="agent-last">Last run</Label>
       <Field
         id="agent-last"
         value={
@@ -88,6 +82,14 @@ export function AgentCard({ featured, lastRun, defaultModel }: { featured: Agent
         }
         action={lastRun ? { href: `/runs/${lastRun.run.id}`, label: "Open run", icon: ArrowUpRight } : undefined}
       />
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Button asChild>
+          <Link href={`/agents/${agent.id}`}>Open agent</Link>
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href="/agents">All agents</Link>
+        </Button>
+      </div>
     </Panel>
   );
 }
@@ -134,20 +136,17 @@ export function WorkloadCard({ t }: { t: Totals }) {
             ))}
         </div>
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
         {segments.map((s) => (
-          <div key={s.key} className="flex items-center gap-4 rounded-2xl border border-white/70 bg-white/50 px-4 py-4">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-[0_1px_2px_rgba(16,24,40,0.08)]">
-              <span className={cn("size-3 rotate-45 rounded-[3px]", s.color)} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[15px] font-semibold">{s.label}</div>
-              <div className="truncate text-[13px] text-muted-foreground">{s.sub}</div>
-            </div>
-            <span className="text-[24px] font-semibold tabular-nums">{s.n}</span>
+          <div key={s.key} title={s.sub}>
+            <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              <span className={cn("size-2 rounded-full", s.color)} />
+              {s.label}
+            </dt>
+            <dd className="mt-1 text-[24px] font-semibold tabular-nums">{s.n}</dd>
           </div>
         ))}
-      </div>
+      </dl>
     </Panel>
   );
 }

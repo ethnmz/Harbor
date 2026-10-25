@@ -3,39 +3,22 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Panel } from "@/components/ui/primitives";
-import { cn } from "@/lib/utils";
+import { Input, Panel } from "@/components/ui/primitives";
 
-function Radio({ checked, onSelect, children }: { checked: boolean; onSelect: () => void; children: React.ReactNode }) {
-  return (
-    <label className="flex cursor-pointer items-center gap-2.5 text-[15px] font-medium">
-      <input type="radio" checked={checked} onChange={onSelect} className="peer sr-only" />
-      <span
-        className={cn(
-          "size-[18px] rounded-full border-2 transition-all peer-focus-visible:ring-4 peer-focus-visible:ring-foreground/10",
-          checked ? "border-[5px] border-foreground" : "border-foreground/20 bg-white/60",
-        )}
-      />
-      {children}
-    </label>
-  );
-}
-
-/** Top-right card: describe a job and jump straight into generation, or browse templates. */
+/** Top-right card: describe a job and jump straight into the step-by-step builder. */
 export function BuildAgentCard() {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<"scratch" | "template">("scratch");
   const [hint, setHint] = useState(false);
   return (
-    <Panel variant="glass" title="Build an agent" description="Describe the job in plain English.">
+    <Panel variant="glass" title="Build an agent" description="Say what the job is. Harbor does the rest, one step at a time.">
       <form
+        className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (mode === "template") return router.push("/agents?view=templates");
           if (text.trim().length < 8) {
             setHint(true);
             return input.current?.focus();
@@ -43,42 +26,35 @@ export function BuildAgentCard() {
           router.push(`/agents/new?prompt=${encodeURIComponent(text.trim())}`);
         }}
       >
-        <Label htmlFor="job">Job description</Label>
         <Input
           ref={input}
           id="job"
+          aria-label="What should the agent do?"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
             setHint(false);
           }}
           placeholder="Triage new tickets and alert #support-urgent"
-          className="mt-2 border-white/80 bg-white/55"
+          className="h-12 flex-1 border-white/80 bg-white/55 text-[15px]"
           aria-describedby={hint ? "job-hint" : undefined}
         />
-        {hint && (
-          <p id="job-hint" className="mt-2 text-[13px] text-danger">
-            Add a sentence about what the agent should do.
-          </p>
-        )}
-        <fieldset className="mt-5 flex flex-wrap gap-x-7 gap-y-3">
-          <legend className="sr-only">Start from</legend>
-          <Radio checked={mode === "scratch"} onSelect={() => setMode("scratch")}>
-            From scratch
-          </Radio>
-          <Radio checked={mode === "template"} onSelect={() => setMode("template")}>
-            From a template
-          </Radio>
-        </fieldset>
-        <Button type="submit" variant="outline" className="mt-6">
-          {mode === "template" ? "Browse templates" : "Generate"}
+        <Button type="submit" size="icon" className="size-12 shrink-0" aria-label="Create agent">
+          <ArrowRight />
         </Button>
       </form>
+      {hint && (
+        <p id="job-hint" className="mt-2 text-[13px] text-danger">
+          Add a sentence about what the agent should do.
+        </p>
+      )}
+      <Link href="/agents?view=templates" className="mt-4 inline-block text-[14px] font-medium text-muted-foreground hover:text-foreground">
+        or start from a template →
+      </Link>
     </Panel>
   );
 }
 
-/** Approve every pending action of a paused run in one click; per-action review lives on the run timeline. */
 export function ApproveAllButton({ approvalIds, reviewHref }: { approvalIds: string[]; reviewHref: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

@@ -11,11 +11,11 @@ export async function AppShell({ ws, children }: { ws: Workspace; children: Reac
   return (
     <div className="flex min-h-screen">
       <AmbientGlow />
-      {/* The rail's background spans the whole page; its contents stick to the viewport. */}
-      <aside className="glass-dark relative z-40 hidden w-[77px] shrink-0 md:block">
-        <div className="sticky top-0 flex h-screen flex-col items-center py-6">
-          <Link href="/dashboard" aria-label="Harbor home" className="mb-10">
-            <HarborMark onDark />
+      {/* A floating liquid-glass rail that sticks to the viewport. */}
+      <aside className="relative z-40 hidden w-[96px] shrink-0 md:block">
+        <div className="glass-rail sticky top-3 m-3 flex h-[calc(100vh-24px)] flex-col items-center rounded-[28px] py-5">
+          <Link href="/dashboard" aria-label="Harbor home" className="mb-8">
+            <HarborMark large />
           </Link>
           <RailNav pendingApprovals={pending} />
           <div className="mt-auto flex flex-col items-center gap-3">
@@ -25,13 +25,13 @@ export async function AppShell({ ws, children }: { ws: Workspace; children: Reac
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="glass-dark flex items-center gap-3 overflow-x-auto px-4 py-3 md:hidden">
+        <div className="glass-rail sticky top-0 z-40 flex items-center gap-3 overflow-x-auto border-x-0 border-t-0 px-4 py-3 md:hidden">
           <Link href="/dashboard" aria-label="Harbor home" className="mr-1">
-            <HarborMark onDark />
+            <HarborMark large />
           </Link>
           <RailNav pendingApprovals={pending} horizontal />
         </div>
-        <main className="w-full min-w-0 flex-1 px-4 pt-6 pb-10 md:px-6 md:pt-7" data-workspace={ws.company}>
+        <main className="w-full min-w-0 flex-1 px-4 pt-6 pb-10 md:pr-6 md:pl-3 md:pt-7" data-workspace={ws.company}>
           <TopBar ownerName={ws.ownerName} />
           <div className="mt-6">{children}</div>
         </main>
