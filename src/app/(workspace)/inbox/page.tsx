@@ -1,5 +1,4 @@
 import { AutoRefresh } from "@/components/auto-refresh";
-import { TicketDetails } from "@/components/inbox/details";
 import { InboxSidebar, type InboxQuery } from "@/components/inbox/sidebar";
 import { Thread } from "@/components/inbox/thread";
 import { EmptyState } from "@/components/ui/primitives";
@@ -7,7 +6,7 @@ import { INBOX_VIEWS, ticketState } from "@/lib/inbox";
 import { inboxTickets, listAgents, ticketThread } from "@/lib/queries";
 import { getWorkspace } from "@/lib/seed";
 
-/** Three-pane helpdesk: views and conversations, the ticket as a thread, and the customer. */
+/** Two-pane helpdesk: views and conversations on the left, the ticket as a thread on the right. */
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ view?: string; channel?: string; t?: string }> }) {
   const sp = await searchParams;
   const [rows, agents, ws] = await Promise.all([inboxTickets(), listAgents(), getWorkspace()]);
@@ -21,16 +20,13 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const agentOptions = agents.map(({ agent }) => ({ id: agent.id, name: agent.name, live: agent.status === "live" }));
 
   return (
-    <div className="grid overflow-hidden rounded-[24px] border border-[#eceef1] bg-card shadow-[0_2px_12px_rgba(16,24,40,0.04)] lg:grid-cols-[300px_minmax(0,1fr)] xl:h-[calc(100dvh-140px)] xl:min-h-[620px] xl:grid-cols-[300px_minmax(0,1fr)_340px]">
+    <div className="grid overflow-hidden rounded-[24px] border border-[#eceef1] bg-card shadow-[0_2px_12px_rgba(16,24,40,0.04)] lg:h-[calc(100dvh-140px)] lg:min-h-[620px] lg:grid-cols-[300px_minmax(0,1fr)]">
       <AutoRefresh />
       <InboxSidebar rows={withState} visible={visible} query={{ ...query, t: selectedId ?? undefined }} selected={selectedId} />
       {thread && selected ? (
-        <>
-          <Thread thread={thread} state={selected.state} ownerName={ws.ownerName} agents={agentOptions} />
-          <TicketDetails thread={thread} state={selected.state} />
-        </>
+        <Thread thread={thread} state={selected.state} ownerName={ws.ownerName} agents={agentOptions} />
       ) : (
-        <div className="p-6 xl:col-span-2">
+        <div className="p-6">
           <EmptyState mascot="murmur" title="No tickets in this view">
             Try another view or channel on the left.
           </EmptyState>

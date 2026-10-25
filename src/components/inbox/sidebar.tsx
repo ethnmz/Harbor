@@ -3,7 +3,7 @@ import { CheckCircle2, CircleDot, Hand, Inbox, Sparkles } from "lucide-react";
 import { INBOX_VIEWS, type InboxView, type TicketState } from "@/lib/inbox";
 import type { InboxRow } from "@/lib/queries";
 import { cn, timeAgo } from "@/lib/utils";
-import { channelOf, PersonAvatar, StateBadge } from "./parts";
+import { channelOf, PersonAvatar, StateDot } from "./parts";
 
 export type Row = InboxRow & { state: TicketState };
 export type InboxQuery = { view: InboxView; channel?: string; t?: string };
@@ -20,7 +20,7 @@ export function inboxHref(q: InboxQuery) {
 const VIEW_ICONS: Record<InboxView, React.ElementType> = { all: Inbox, "needs-you": Hand, "ai-handled": Sparkles, new: CircleDot, resolved: CheckCircle2 };
 
 function Count({ n }: { n: number }) {
-  return <span className="min-w-6 rounded-md border bg-muted px-1.5 py-0.5 text-center text-[12px] font-semibold text-muted-foreground tabular-nums">{n}</span>;
+  return <span className="text-[13px] text-muted-foreground tabular-nums">{n}</span>;
 }
 
 /** Left pane: views, channels and the conversation list, all driven by the URL. */
@@ -76,7 +76,7 @@ export function InboxSidebar({ rows, visible, query, selected }: { rows: Row[]; 
         <span className="text-[14px] font-semibold">Conversations</span>
         <span className="text-[12px] text-muted-foreground tabular-nums">{visible.length}</span>
       </div>
-      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4 max-xl:max-h-[560px]">
+      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4 max-lg:max-h-[560px]">
         {visible.map((r) => {
           const on = r.ticket.id === selected;
           return (
@@ -89,10 +89,12 @@ export function InboxSidebar({ rows, visible, query, selected }: { rows: Row[]; 
                 <div className="flex items-center gap-2.5">
                   <PersonAvatar name={r.ticket.customerName} size={30} />
                   <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.ticket.customerName}</span>
-                  <StateBadge state={r.state} />
                 </div>
                 <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">&ldquo;{r.ticket.subject}&rdquo;</p>
-                <div className="mt-1 text-right text-[12px] text-muted-foreground">{timeAgo(r.ticket.receivedAt)}</div>
+                <div className="mt-1.5 flex items-center justify-between text-[12px] text-muted-foreground">
+                  <StateDot state={r.state} />
+                  {timeAgo(r.ticket.receivedAt)}
+                </div>
               </Link>
             </li>
           );
