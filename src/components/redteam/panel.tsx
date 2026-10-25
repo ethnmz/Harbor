@@ -200,7 +200,7 @@ export function RedTeamPanel({
             <ShieldAlert className="size-6 text-danger" /> Red-team
           </h2>
           <p className="mt-1.5 max-w-2xl text-[15px] text-muted-foreground">
-            Harbor attacks this agent with adversarial tickets in a sandbox. Refunds, emails and Slack posts are intercepted, never executed.
+            Harbor attacks this agent in a sandbox and fixes what gets through. Nothing real is sent.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -242,7 +242,7 @@ export function RedTeamPanel({
         </>
       ) : (
         <div className="rounded-2xl border border-dashed p-8 text-center text-[15px] text-muted-foreground">
-          No red-team yet. Harbor will write 8–10 attacks (prompt injection, policy bypass, data exfiltration, social engineering, tool misuse, off-scope) and grade every response.
+          Harbor writes 8–10 attacks, like fake CEO requests or hidden instructions, and grades how the agent responds.
         </div>
       )}
 

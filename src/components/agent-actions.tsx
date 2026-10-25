@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookCopy, Copy, Inbox, Loader2, Pause, Pencil, Play, Rocket, Wand2, X } from "lucide-react";
+import { BookCopy, Copy, Inbox, Loader2, MoreHorizontal, Pause, Pencil, Play, Rocket, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, Input, Label, Select, Textarea } from "@/components/ui/primitives";
 
@@ -33,6 +33,7 @@ export function AgentActions({
   const [busy, setBusy] = useState<string | null>(null);
   const [ticket, setTicket] = useState(tickets[0]?.id ?? "");
   const [cloneOpen, setCloneOpen] = useState(false);
+  const [runOpen, setRunOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const run = async (key: string, fn: () => Promise<void>) => {
@@ -47,6 +48,12 @@ export function AgentActions({
     }
   };
 
+  const runOne = () =>
+    run("ticket", async () => {
+      const r = await post<{ runIds: string[] }>(`/api/agents/${agentId}/runs`, { ticketId: ticket });
+      router.push(`/runs/${r.runIds[0]}`);
+    });
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -59,56 +66,8 @@ export function AgentActions({
             {busy === "status" ? <Loader2 className="animate-spin" /> : <Rocket />} Deploy
           </Button>
         )}
-        <Button variant="outline" asChild>
-          <Link href={`/agents/new?draft=${agentId}`}>
-            <Pencil /> Edit &amp; re-test
-          </Link>
-        </Button>
-        <Button variant="outline" onClick={() => setCloneOpen(true)}>
-          <Copy /> Clone
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={!!busy || published}
-          onClick={() =>
-            run("publish", async () => {
-              await post(`/api/agents/${agentId}/publish`);
-              setMsg("Published to the template gallery.");
-              router.refresh();
-            })
-          }
-        >
-          <BookCopy /> {published ? "In template gallery" : "Save as template"}
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-muted p-4">
-        <div className="min-w-60 flex-1 space-y-2">
-          <Label htmlFor="ticket">Run on a single ticket</Label>
-          <Select id="ticket" value={ticket} onChange={(e) => setTicket(e.target.value)} className="bg-card">
-            {tickets.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.id} · {t.subject}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Button
-          size="lg"
-          variant="outline"
-          disabled={!!busy || !ticket}
-          onClick={() =>
-            run("ticket", async () => {
-              const r = await post<{ runIds: string[] }>(`/api/agents/${agentId}/runs`, { ticketId: ticket });
-              router.push(`/runs/${r.runIds[0]}`);
-            })
-          }
-        >
-          {busy === "ticket" ? <Loader2 className="animate-spin" /> : <Play />} Run
-        </Button>
         {status === "live" && (
           <Button
-            size="lg"
             variant="outline"
             disabled={!!busy || !openInbox}
             onClick={() =>
@@ -119,10 +78,57 @@ export function AgentActions({
               })
             }
           >
-            {busy === "inbox" ? <Loader2 className="animate-spin" /> : <Inbox />} Work the inbox ({openInbox} open)
+            {busy === "inbox" ? <Loader2 className="animate-spin" /> : <Inbox />} Work the inbox ({openInbox})
           </Button>
         )}
+        <Button variant="outline" onClick={() => setRunOpen((v) => !v)} aria-expanded={runOpen}>
+          <Play /> Try on a ticket
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href={`/agents/new?draft=${agentId}`}>
+            <Pencil /> Edit
+          </Link>
+        </Button>
+        <details className="relative">
+          <summary className="flex h-10 cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 text-[14px] font-semibold hover:bg-muted" aria-label="More actions">
+            <MoreHorizontal className="size-4" /> More
+          </summary>
+          <div className="absolute left-0 z-20 mt-1 w-56 rounded-2xl border bg-card p-1.5 shadow-lg">
+            <button type="button" onClick={() => setCloneOpen(true)} className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[14px] hover:bg-muted">
+              <Copy className="size-4" /> Clone
+            </button>
+            <button
+              type="button"
+              disabled={!!busy || published}
+              onClick={() =>
+                run("publish", async () => {
+                  await post(`/api/agents/${agentId}/publish`);
+                  setMsg("Published to the template gallery.");
+                  router.refresh();
+                })
+              }
+              className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[14px] hover:bg-muted disabled:cursor-default disabled:opacity-60"
+            >
+              <BookCopy className="size-4" /> {published ? "In template gallery" : "Save as template"}
+            </button>
+          </div>
+        </details>
       </div>
+
+      {runOpen && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted p-3 animate-rise">
+          <Select aria-label="Ticket to run on" value={ticket} onChange={(e) => setTicket(e.target.value)} className="min-w-60 flex-1 bg-card">
+            {tickets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.id} · {t.subject}
+              </option>
+            ))}
+          </Select>
+          <Button disabled={!!busy || !ticket} onClick={runOne}>
+            {busy === "ticket" ? <Loader2 className="animate-spin" /> : <Play />} Run
+          </Button>
+        </div>
+      )}
       {msg && <p className="text-[14px] text-muted-foreground">{msg}</p>}
       {cloneOpen && <CloneDialog agentId={agentId} agentName={agentName} onClose={() => setCloneOpen(false)} />}
     </div>

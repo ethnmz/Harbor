@@ -3,11 +3,10 @@ import { ApprovalsBoard, type ApprovalGroup } from "@/components/approvals-board
 import { Badge, Panel } from "@/components/ui/primitives";
 import { toJson } from "@/lib/json";
 import { listApprovals } from "@/lib/queries";
-import { getWorkspace } from "@/lib/seed";
 import { timeAgo } from "@/lib/utils";
 
 export default async function ApprovalsPage() {
-  const [rows, ws] = await Promise.all([listApprovals(), getWorkspace()]);
+  const rows = await listApprovals();
   const pending = toJson(rows.filter((r) => r.approval.status === "pending"));
   const groups: ApprovalGroup[] = [];
   for (const r of pending) {
@@ -22,18 +21,7 @@ export default async function ApprovalsPage() {
     <div className="space-y-6">
       <Panel
         title="Waiting on you"
-        description={
-          <>
-            Agents pause before risky actions. Your workspace policy requires a manager for{" "}
-            {ws.policies.approvalRequiredTools.map((t, i) => (
-              <span key={t}>
-                {i > 0 && " and "}
-                <code className="font-mono text-[13px]">{t}</code>
-              </span>
-            ))}
-            . Requests are also posted to Slack.
-          </>
-        }
+        description="Agents pause here before risky actions, like refunds or customer emails, until you decide. Requests are also posted to Slack."
       >
         <ApprovalsBoard groups={groups} />
       </Panel>

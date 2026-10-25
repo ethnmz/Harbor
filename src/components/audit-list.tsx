@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, Check, Copy, FileCog, Hand, Mail, Play, Rocket, RotateCcw, Search, Settings2, UserRound, Wrench, X } from "lucide-react";
+import { Bot, Check, Copy, FileCog, Hand, Mail, Play, Rocket, RotateCcw, Search, Settings2, ShieldAlert, ShieldCheck, Sparkles, UserRound, Wrench, X } from "lucide-react";
 import type { AuditEntry } from "@/lib/db/schema";
 import { cn, formatUsd, timeAgo } from "@/lib/utils";
 import { AgentOrb } from "@/components/agent-orb";
@@ -73,6 +73,41 @@ function describe(e: AuditEntry): { text: React.ReactNode; icon: React.ElementTy
       return { text: <>resolved {e.target}</>, icon: Check, href: `/inbox?t=${e.target}`, tone: "text-success" };
     case "ticket.reopened":
       return { text: <>reopened {e.target}</>, icon: RotateCcw, href: `/inbox?t=${e.target}` };
+    case "demo.redteam_reset":
+      return { text: <>reset the red-team demo agent to v1</>, icon: RotateCcw, href: e.target ? `/agents/${e.target}` : undefined };
+    case "redteam.started":
+      return { text: <>started a red-team on v{String(d.version)}{d.purpose === "verify" ? " (re-verify)" : ""}</>, icon: ShieldAlert, href: d.agent ? `/agents/${String(d.agent)}` : undefined };
+    case "redteam.completed":
+      return {
+        text: (
+          <>
+            red-team on v{String(d.version)}: <b>{String(d.score)}/{String(d.total)}</b> attacks stopped
+          </>
+        ),
+        icon: ShieldAlert,
+        href: d.agent ? `/agents/${String(d.agent)}` : undefined,
+        tone: d.score === d.total ? "text-success" : "text-danger",
+      };
+    case "redteam.failed":
+      return { text: <>red-team failed: {String(d.error)}</>, icon: ShieldAlert, tone: "text-danger" };
+    case "heal.proposed":
+      return { text: <>proposed a fix for {String(d.failures)} attack{d.failures === 1 ? "" : "s"}{Number(d.iteration) > 1 ? " (automatic)" : ""}</>, icon: Sparkles, href: d.agent ? `/agents/${String(d.agent)}` : undefined };
+    case "heal.accepted":
+      return { text: <>accepted the fix: v{String(d.from_version)} → v{String(d.to_version)}</>, icon: Check, href: d.agent ? `/agents/${String(d.agent)}` : undefined, tone: "text-success" };
+    case "heal.rejected":
+      return { text: <>rejected a proposed fix</>, icon: X, href: d.agent ? `/agents/${String(d.agent)}` : undefined };
+    case "heal.verified":
+      return { text: <>verified v{String(d.to_version)}: attacks {String(d.redteam)}, tests {String(d.tests)}</>, icon: ShieldCheck, href: d.agent ? `/agents/${String(d.agent)}` : undefined, tone: "text-success" };
+    case "heal.regressed":
+      return { text: <>found a regression in v{String(d.to_version)}{d.rolled_back ? " and rolled it back" : ""}</>, icon: ShieldAlert, href: d.agent ? `/agents/${String(d.agent)}` : undefined, tone: "text-warning" };
+    case "heal.auto_iteration":
+      return { text: <>tried another fix automatically</>, icon: Sparkles, href: d.agent ? `/agents/${String(d.agent)}` : undefined };
+    case "heal.failed":
+      return { text: <>couldn&apos;t verify a fix: {String(d.error)}</>, icon: ShieldAlert, tone: "text-danger" };
+    case "agent.version_created":
+      return { text: <>created version v{String(d.version)}</>, icon: FileCog, href: e.target ? `/agents/${e.target}` : undefined };
+    case "agent.version_activated":
+      return { text: <>switched to version v{String(d.version)}</>, icon: RotateCcw, href: e.target ? `/agents/${e.target}` : undefined };
     default:
       return { text: e.action, icon: FileCog };
   }
