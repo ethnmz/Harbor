@@ -30,3 +30,23 @@ export async function versionHistory(agentId: string) {
     }),
   };
 }
+
+/** Everything the agent page's red-team panel needs on first render. */
+export async function redTeamPanelState(agentId: string) {
+  const history = await versionHistory(agentId);
+  const [latestRun] = await db
+    .select()
+    .from(redteamRuns)
+    .where(and(eq(redteamRuns.agentId, agentId), eq(redteamRuns.purpose, "manual")))
+    .orderBy(desc(redteamRuns.createdAt))
+    .limit(1);
+  const [patch] = latestRun
+    ? await db
+        .select({ id: healPatches.id })
+        .from(healPatches)
+        .where(and(eq(healPatches.redteamRunId, latestRun.id), eq(healPatches.iteration, 1)))
+        .orderBy(desc(healPatches.createdAt))
+        .limit(1)
+    : [];
+  return { ...history, latestRunId: latestRun?.id ?? null, patchId: patch?.id ?? null };
+}
