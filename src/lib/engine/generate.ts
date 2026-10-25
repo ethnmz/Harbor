@@ -58,6 +58,7 @@ function workspaceBrief(ws: Workspace) {
   const p = ws.policies;
   return [
     `Company: ${ws.company}. Team lead: ${ws.ownerName}. Default model: ${ws.defaultModel}.`,
+    ...(p.profile ? [`${ws.company} has ${p.profile.size} people${p.profile.kinds.length ? ` and describes itself as: ${p.profile.kinds.join(", ")}` : ""}.`] : []),
     "Connected tools (the only ones an agent may use):",
     ...TOOLS.map((t) => `- ${t.name} [${t.connection}]${p.approvalRequiredTools.includes(t.name) ? " (requires manager approval)" : ""}: ${t.description}`),
     "Company policy:",

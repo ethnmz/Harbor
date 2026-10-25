@@ -17,6 +17,7 @@ const body = z.object({
     maxCostPerRunUsd: z.number().min(0.01).max(100),
     allowedSlackChannels: z.array(z.string().regex(/^#[a-z0-9_-]+$/)),
     rules: z.array(z.string().min(1)),
+    profile: z.object({ size: z.string().min(1).max(40), kinds: z.array(z.string().min(1).max(40)).max(12) }).optional(),
   }),
   enabledConnections: z.record(z.string(), z.boolean()).optional(),
   complete: z.boolean().optional(),

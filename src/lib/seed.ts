@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq, sql as dsql } from "drizzle-orm";
 import { db, sql } from "./db";
 import {
@@ -25,11 +26,12 @@ import {
 } from "./seed-data";
 import { DEFAULT_MODEL } from "./llm/models";
 
-export async function getWorkspace(): Promise<Workspace> {
+/** Cached per request, so the layouts and the page share one query. */
+export const getWorkspace = cache(async (): Promise<Workspace> => {
   const [existing] = await db.select().from(workspaces).limit(1);
   if (existing) return existing;
   return seedWorkspace();
-}
+});
 
 async function seedWorkspace(): Promise<Workspace> {
   const [ws] = await db
