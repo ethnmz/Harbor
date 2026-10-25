@@ -5,7 +5,7 @@ import { HUMAN_ACTOR } from "@/lib/audit";
 import { latestManualRedTeam } from "@/lib/redteam/engine";
 import { getHeal, proposeHeal } from "@/lib/redteam/heal";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type Ctx = { params: Promise<{ id: string }> };
 

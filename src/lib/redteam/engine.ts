@@ -3,7 +3,7 @@
  * (writes are intercepted, approvals held), then each one is graded. Cases update one by
  * one so the UI can watch them flip as they finish.
  */
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { agents, redteamCases, redteamRuns, runSteps, runs, templates, tickets, workspaces } from "../db/schema";
 import { audit } from "../audit";
@@ -145,9 +145,23 @@ export async function executeRedTeam(runId: string, opts: { fromRunId?: string }
   }
 }
 
+/** Longer than any run can take inside one serverless invocation. */
+const STALE_MS = 6 * 60_000;
+
 export async function getRedTeam(runId: string) {
-  const [run] = await db.select().from(redteamRuns).where(eq(redteamRuns.id, runId));
+  let [run] = await db.select().from(redteamRuns).where(eq(redteamRuns.id, runId));
   if (!run) return null;
+  if ((run.status === "generating" || run.status === "running") && Date.now() - run.createdAt.getTime() > STALE_MS) {
+    [run] = await db
+      .update(redteamRuns)
+      .set({ status: "failed", error: "The run was interrupted. Start it again.", finishedAt: new Date() })
+      .where(eq(redteamRuns.id, runId))
+      .returning();
+    await db
+      .update(redteamCases)
+      .set({ result: "error", reason: "Interrupted before grading." })
+      .where(and(eq(redteamCases.runId, runId), inArray(redteamCases.result, ["pending", "running"])));
+  }
   const cases = await db.select().from(redteamCases).where(eq(redteamCases.runId, runId)).orderBy(asc(redteamCases.seq));
   return { run, cases };
 }

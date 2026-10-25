@@ -38,6 +38,9 @@ export type HealPatch = {
 export type Change = { kind: "instructions" | "guardrail" | "tool" | "approval" | "limit"; label: string; before: string; after: string; why: string };
 
 const MAX_AUTO_ITERATIONS = 2;
+/** Auto-iterations must finish inside the accept request's 300 s budget. */
+const ITERATION_BUDGET_MS = 140_000;
+const STALE_VERIFY_MS = 6 * 60_000;
 
 // ---------------------------------------------------------------------------
 // Applying a patch
@@ -307,6 +310,8 @@ export type Verification = {
   flipped: { category: string; subject: string }[];
   regressions: { kind: "attack" | "test"; label: string }[];
   stillFailing: { category: string; subject: string }[];
+  /** True while Harbor is proposing an automatic follow-up patch. */
+  iterating?: boolean;
   error?: string;
 };
 
@@ -365,7 +370,7 @@ async function runTestSet(agentId: string, version: number) {
  * in parallel, in sandbox mode. Then compare, flag regressions, and auto-iterate if
  * attacks still get through.
  */
-export async function verifyPatch(patchId: string): Promise<void> {
+export async function verifyPatch(patchId: string, startedAt = Date.now()): Promise<void> {
   const p = await loadPatch(patchId);
   const { ws } = await wsFor(p.agentId);
   const [before] = await db.select().from(redteamRuns).where(eq(redteamRuns.id, p.redteamRunId!));
@@ -404,7 +409,7 @@ export async function verifyPatch(patchId: string): Promise<void> {
     for (const n of newCases) {
       const o = n.originCaseId ? origin(n.originCaseId) : undefined;
       const label = { category: n.category, subject: n.attackSubject };
-      if (n.result !== "pass") verification.stillFailing.push(label);
+      if (n.result === "fail") verification.stillFailing.push(label);
       if (o?.result === "fail" && n.result === "pass") verification.flipped.push(label);
       if (o?.result === "pass" && n.result !== "pass") verification.regressions.push({ kind: "attack", label: `${CATEGORY_LABEL[n.category as AttackCategory] ?? n.category}: ${n.attackSubject}` });
     }
@@ -432,12 +437,23 @@ export async function verifyPatch(patchId: string): Promise<void> {
     );
 
     // Attacks still getting through: Harbor patches again on its own, up to twice.
-    if (verification.stillFailing.length && p.iteration <= MAX_AUTO_ITERATIONS) {
-      const next = await proposeHeal(p.agentId, rerun.id, { actor: "harbor:heal", iteration: p.iteration + 1, parentPatchId: patchId }).catch(() => null);
-      if (next) {
-        await audit("harbor:heal", "heal.auto_iteration", next.id, { agent: p.agentId, iteration: next.iteration, parent: patchId }, ws.id);
-        await acceptHeal(next.id, "harbor:heal");
-        await verifyPatch(next.id);
+    if (verification.stillFailing.length && p.iteration <= MAX_AUTO_ITERATIONS && Date.now() - startedAt < ITERATION_BUDGET_MS) {
+      verification.iterating = true;
+      await save();
+      try {
+        const next = await proposeHeal(p.agentId, rerun.id, { actor: "harbor:heal", iteration: p.iteration + 1, parentPatchId: patchId }).catch(() => null);
+        if (next) {
+          await audit("harbor:heal", "heal.auto_iteration", next.id, { agent: p.agentId, iteration: next.iteration, parent: patchId }, ws.id);
+          await acceptHeal(next.id, "harbor:heal");
+          verification.iterating = false;
+          await save();
+          await verifyPatch(next.id, startedAt);
+        }
+      } finally {
+        if (verification.iterating) {
+          verification.iterating = false;
+          await save();
+        }
       }
     }
   } catch (e) {
@@ -450,7 +466,11 @@ export async function verifyPatch(patchId: string): Promise<void> {
 
 /** A patch with its diff, its verification and any automatic follow-ups, for the UI. */
 export async function getHeal(patchId: string) {
-  const p = await loadPatch(patchId);
+  let p = await loadPatch(patchId);
+  if (p.status === "verifying" && Date.now() - (p.decidedAt ?? p.createdAt).getTime() > STALE_VERIFY_MS) {
+    const v = { ...((p.verification ?? {}) as Record<string, unknown>), iterating: false, error: "Verification was interrupted. Red-team the agent again to check it." };
+    [p] = await db.update(healPatches).set({ status: "failed", verification: v }).where(eq(healPatches.id, patchId)).returning();
+  }
   const { ws } = await wsFor(p.agentId);
   const from = await getVersion(p.agentId, p.fromVersion);
   const [template] = await db.select().from(templates).where(eq(templates.id, from!.templateId));
