@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   integer,
+  uniqueIndex,
   boolean,
   doublePrecision,
   primaryKey,
@@ -36,6 +37,12 @@ export type Guardrails = {
   maxRefundUsd: number;
   allowedSlackChannels: string[];
   rules: string[];
+  /** Enforced in the tool layer (self-healing can add these). Absent = not enforced. */
+  emailRecipients?: "any" | "ticket_customer";
+  /** Block outbound text (emails, Slack) that contains any email address other than the ticket customer's. */
+  blockForeignEmails?: boolean;
+  /** Refunds must name an invoice that belongs to the ticket's customer. */
+  requireInvoiceForRefund?: boolean;
 };
 
 export type TicketCustomer = {
@@ -120,6 +127,8 @@ export const tickets = pgTable("tickets", {
   channel: text("channel").notNull().default("email"),
   /** Part of the 10-ticket test set. */
   inTestSet: boolean("in_test_set").notNull().default(false),
+  /** Synthetic ticket for red-team attacks; hidden from the inbox, test set and stats. */
+  sandbox: boolean("sandbox").notNull().default(false),
   status: text("status").notNull().default("open"), // open | triaged | resolved
   urgency: text("urgency"), // low | normal | high | urgent
   category: text("category"),
@@ -138,7 +147,9 @@ export const runs = pgTable(
       .references(() => agents.id, { onDelete: "cascade" }),
     ticketId: text("ticket_id").references(() => tickets.id),
     batchId: uuid("batch_id"),
-    trigger: text("trigger").notNull(), // test | manual | live
+    trigger: text("trigger").notNull(), // test | manual | live | redteam | verify (the last two run sandboxed)
+    /** The agent version this run used (null for runs before versioning). */
+    agentVersion: integer("agent_version"),
     status: text("status").notNull().default("queued"), // queued | running | awaiting_approval | completed | failed
     outcome: text("outcome"), // handled | flagged | failed
     summary: text("summary"),
@@ -251,6 +262,94 @@ export const slackMessages = pgTable("slack_messages", {
   text: text("text").notNull(),
   delivered: boolean("delivered").notNull(),
   error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Immutable snapshots of an agent's config. The agent's active version is the one whose template it points at. */
+export const agentVersions = pgTable(
+  "agent_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    templateId: uuid("template_id")
+      .notNull()
+      .references(() => templates.id),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+    createdFromPatch: uuid("created_from_patch"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("agent_versions_agent_version_idx").on(t.agentId, t.version)],
+);
+
+export const redteamRuns = pgTable(
+  "redteam_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    agentVersion: integer("agent_version").notNull(),
+    status: text("status").notNull().default("generating"), // generating | running | completed | failed
+    /** generated | fallback | rerun */
+    source: text("source").notNull().default("generated"),
+    /** manual | verify */
+    purpose: text("purpose").notNull().default("manual"),
+    healPatchId: uuid("heal_patch_id"),
+    score: integer("score"),
+    total: integer("total"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("redteam_runs_agent_idx").on(t.agentId, t.createdAt)],
+);
+
+export const redteamCases = pgTable(
+  "redteam_cases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => redteamRuns.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    category: text("category").notNull(),
+    attackSubject: text("attack_subject").notNull(),
+    attackText: text("attack_text").notNull(),
+    /** What a safe agent should do, used by the judge. */
+    expectation: text("expectation").notNull().default(""),
+    result: text("result").notNull().default("pending"), // pending | running | pass | fail | error
+    reason: text("reason"),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>(),
+    ticketId: text("ticket_id"),
+    agentRunId: uuid("agent_run_id"),
+    originCaseId: uuid("origin_case_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("redteam_cases_run_idx").on(t.runId, t.seq)],
+);
+
+export const healPatches = pgTable("heal_patches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentId: uuid("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  fromVersion: integer("from_version").notNull(),
+  toVersion: integer("to_version"),
+  /** proposed | rejected | verifying | verified | regressed | failed */
+  status: text("status").notNull().default("proposed"),
+  /** llm | fallback */
+  source: text("source").notNull(),
+  /** 1 = accepted by a person; 2-3 = automatic follow-up iterations. */
+  iteration: integer("iteration").notNull().default(1),
+  parentPatchId: uuid("parent_patch_id"),
+  redteamRunId: uuid("redteam_run_id"),
+  patch: jsonb("patch").$type<Record<string, unknown>>().notNull(),
+  verification: jsonb("verification").$type<Record<string, unknown>>(),
+  decidedBy: text("decided_by"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
