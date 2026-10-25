@@ -97,7 +97,7 @@ export function PerformanceChart({ rows, hours, minutes, engine }: { rows: Row[]
             {s.label}
           </span>
         ))}
-        <span className="ml-auto font-mono text-[11px]">bucketed with {engine}</span>
+        <span className="sr-only">Bucketed with {engine}</span>
       </div>
       <div ref={ref} className="relative" style={{ height: H }} onMouseLeave={() => setHover(null)}>
         {width > 0 && data.length > 0 && (

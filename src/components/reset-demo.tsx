@@ -15,7 +15,7 @@ export function ResetDemoButton({ className }: { className?: string }) {
       disabled={busy}
       aria-label="Reset demo"
       className={cn(
-        "group relative flex size-12 cursor-pointer items-center justify-center rounded-xl text-rail-icon transition-colors hover:bg-rail-active/60 hover:text-white disabled:opacity-60",
+        "group relative flex size-12 cursor-pointer items-center justify-center rounded-xl text-foreground/50 transition-colors hover:bg-white/60 hover:text-foreground disabled:opacity-60",
         className,
       )}
       onClick={async () => {

@@ -3,21 +3,38 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CornerDownLeft, FlaskConical, Info, Loader2, Rocket, ShieldCheck, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Loader2, Lock, Rocket, Sparkles, X } from "lucide-react";
+import { AmbientGlow } from "@/components/ambient-glow";
+import { Mascot } from "@/components/mascots/mascot";
+import { SpeechBubble } from "@/components/mascots/speech-bubble";
+import { Chip, FieldTitle, Slider } from "@/components/onboarding/controls";
 import { Button } from "@/components/ui/button";
-import { Badge, Card, Textarea } from "@/components/ui/primitives";
-import { LiveDot } from "@/components/status";
+import { Input, Select, Switch, Textarea } from "@/components/ui/primitives";
 import type { AgentConfig } from "@/lib/engine/config";
 import type { GenerateResult } from "@/lib/engine/generate";
 import type { ModelInfo } from "@/lib/llm/models";
+import type { MascotKind } from "@/lib/mascots";
 import type { ToolCatalogEntry } from "@/lib/queries";
-import { cn, formatMs, formatUsd } from "@/lib/utils";
-import { ConfigCard, type BuilderWorkspace } from "./config-card";
+import { cn } from "@/lib/utils";
+import type { BuilderWorkspace } from "./config-card";
 import { summarize, TestReport, useBatch } from "./test-report";
-import { Mascot } from "@/components/mascots/mascot";
-import { SpeechBubble } from "@/components/mascots/speech-bubble";
 
-type Stage = "describe" | "generating" | "config" | "testing" | "live";
+/**
+ * Creating an agent, one question per screen (like onboarding): describe the job, meet the
+ * agent Harbor wrote, choose what it can use, set its limits, test it on 10 tickets, go live.
+ */
+const STEPS = ["describe", "meet", "tools", "limits", "test", "live"] as const;
+type StepId = (typeof STEPS)[number];
+const QUESTIONS = STEPS.slice(0, -1);
+
+const GUIDE: Record<StepId, MascotKind[]> = {
+  describe: ["murmur"],
+  meet: ["orbit"],
+  tools: ["facet"],
+  limits: ["orbit"],
+  test: ["facet"],
+  live: ["orbit"],
+};
 
 const EXAMPLES = [
   {
@@ -36,6 +53,13 @@ export type BuilderDraft = {
   status: string;
 };
 
+async function call<T>(url: string, body?: unknown, method = "POST"): Promise<T> {
+  const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({ error: `Server error (${res.status}). Try again.` }));
+  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  return data as T;
+}
+
 export function AgentBuilder({
   catalog,
   models,
@@ -53,21 +77,32 @@ export function AgentBuilder({
   initialPrompt?: string;
 }) {
   const router = useRouter();
-  const [stage, setStage] = useState<Stage>(draft ? "config" : "describe");
+  const [step, setStep] = useState<StepId>(draft ? "meet" : "describe");
+  const [cue, setCue] = useState(0);
   const [description, setDescription] = useState(draft?.prompt ?? initialPrompt ?? "");
   const [config, setConfig] = useState<AgentConfig | null>(draft?.config ?? null);
   const [gen, setGen] = useState<Pick<GenerateResult, "adjustments" | "reasoning" | "provider" | "latencyMs"> | null>(null);
   const [agentId, setAgentId] = useState<string | null>(draft?.agentId ?? null);
   const [batchId, setBatchId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [deployed, setDeployed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rows = useBatch(batchId);
   const report = summarize(rows);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const q = QUESTIONS.indexOf(step as (typeof QUESTIONS)[number]);
+
+  function go(s: StepId) {
+    setStep(s);
+    setCue((c) => c + 1);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   useEffect(() => {
-    if (stage === "describe") inputRef.current?.focus();
-  }, [stage]);
+    if (step === "describe") inputRef.current?.focus();
+  }, [step]);
 
   const autoStarted = useRef(false);
   useEffect(() => {
@@ -79,25 +114,19 @@ export function AgentBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function call<T>(url: string, body?: unknown, method = "POST"): Promise<T> {
-    const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-    return data as T;
-  }
-
   async function generate() {
-    if (description.trim().length < 8) return;
+    if (description.trim().length < 8 || generating) return;
     setError(null);
-    setStage("generating");
+    setGenerating(true);
     try {
       const result = await call<GenerateResult>("/api/agents/generate", { description });
       setConfig(result.config);
       setGen(result);
-      setStage("config");
+      go("meet");
     } catch (e) {
       setError((e as Error).message);
-      setStage("describe");
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -108,7 +137,7 @@ export function AgentBuilder({
     try {
       let id = agentId;
       if (id) {
-        const r = await call<{ config: AgentConfig; adjustments: string[] }>(`/api/agents/${id}`, { config }, "PATCH");
+        const r = await call<{ config: AgentConfig }>(`/api/agents/${id}`, { config }, "PATCH");
         setConfig(r.config);
       } else {
         const r = await call<{ agentId: string }>("/api/agents", { config, prompt: description });
@@ -117,8 +146,7 @@ export function AgentBuilder({
       }
       const b = await call<{ batchId: string }>(`/api/agents/${id}/test-runs`);
       setBatchId(b.batchId);
-      setStage("testing");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      go("test");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -129,9 +157,11 @@ export function AgentBuilder({
   async function deploy() {
     if (!agentId) return;
     setBusy(true);
+    setError(null);
     try {
       await call(`/api/agents/${agentId}/deploy`, { status: "live" });
-      setStage("live");
+      setDeployed(true);
+      setCue((c) => c + 1);
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -140,261 +170,381 @@ export function AgentBuilder({
     }
   }
 
-  const steps: { key: Stage[]; label: string }[] = [
-    { key: ["describe", "generating"], label: "Describe" },
-    { key: ["config"], label: "Review config" },
-    { key: ["testing"], label: "Test on 10 tickets" },
-    { key: ["live"], label: "Deploy" },
-  ];
-  const currentIdx = steps.findIndex((s) => s.key.includes(stage));
+  function next() {
+    if (busy || generating) return;
+    if (step === "describe") return void generate();
+    if (step === "limits") return void saveAndTest();
+    if (step === "test") return report.finished && go("live");
+    if (step === "live") return void (deployed ? router.push(`/agents/${agentId}`) : deploy());
+    go(STEPS[STEPS.indexOf(step) + 1]);
+  }
+  function back() {
+    const i = STEPS.indexOf(step);
+    if (step === "live") return go("test");
+    if (step === "test") return go("limits");
+    if (i > (draft ? 1 : 0)) go(STEPS[i - 1]);
+  }
+  function exit() {
+    router.push(agentId ? `/agents/${agentId}` : "/agents");
+  }
+
+  // Enter continues and Esc leaves, unless the user is typing in a field.
+  const keys = useRef({ next, exit });
+  useEffect(() => {
+    keys.current = { next, exit };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, button, a, summary")) return;
+      if (e.key === "Enter") keys.current.next();
+      if (e.key === "Escape") keys.current.exit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const worked = report.handled + report.flagged + report.waiting;
+  const name = config?.name || "your agent";
+  const screens: Record<StepId, { line: React.ReactNode; title: string; subtitle: string; body: React.ReactNode; cta: React.ReactNode; canNext: boolean }> = {
+    describe: {
+      line: generating ? "Writing your agent: picking the fewest tools, writing its instructions, applying company policy…" : "Tell me the job like you'd tell a new teammate. I'll handle the setup.",
+      title: "What should your agent do?",
+      subtitle: `It inherits ${workspace.company}'s tools, approvals and guardrails automatically.`,
+      body: (
+        <div>
+          <Textarea
+            ref={inputRef}
+            aria-label="What should your agent do?"
+            value={description}
+            disabled={generating}
+            onChange={(e) => setDescription(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void generate();
+            }}
+            placeholder="e.g. Sort incoming support tickets by urgency and post urgent ones to #support-urgent"
+            className="min-h-32 border-white/80 bg-white/60 text-[16px] leading-relaxed"
+          />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-[13px] text-muted-foreground">Or try:</span>
+            {EXAMPLES.map((ex) => (
+              <Chip key={ex.label} selected={description === ex.text} onClick={() => setDescription(ex.text)} className="h-9 text-[13px]">
+                {ex.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      ),
+      cta: generating ? (
+        <>
+          <Loader2 className="animate-spin" /> Writing…
+        </>
+      ) : (
+        <>
+          <Sparkles /> Create my agent
+        </>
+      ),
+      canNext: description.trim().length >= 8 && !generating,
+    },
+    meet: {
+      line: draft?.sourceName ? `Cloned from ${draft.sourceName}. Give it a name and check the job.` : gen?.reasoning || "Here's who I wrote. Rename it or tweak the job if you like.",
+      title: `Meet ${name}`,
+      subtitle: "This is what it will do on every ticket.",
+      body: config && <MeetStep config={config} onChange={setConfig} catalog={catalog} adjustments={gen?.adjustments ?? []} />,
+      cta: "Looks good",
+      canNext: !!config?.name.trim(),
+    },
+    tools: {
+      line: "Only what the job needs. For anything risky, I'll ask a manager first.",
+      title: "What can it use?",
+      subtitle: "Switch tools on or off. “Ask first” pauses the agent until a manager approves.",
+      body: config && <ToolsStep config={config} onChange={setConfig} catalog={catalog} workspace={workspace} />,
+      cta: "Continue",
+      canNext: !!config?.allowedTools.length,
+    },
+    limits: {
+      line: "Limits are enforced in code, whatever the agent decides. Anything bigger goes to a person.",
+      title: "Set its limits",
+      subtitle: "Your company's maximums apply. You can be stricter, never looser.",
+      body: config && <LimitsStep config={config} onChange={setConfig} models={models} workspace={workspace} llmLive={llmLive} />,
+      cta: busy ? (
+        <>
+          <Loader2 className="animate-spin" /> Saving…
+        </>
+      ) : (
+        "Save & test on 10 tickets"
+      ),
+      canNext: !busy,
+    },
+    test: {
+      line: report.finished
+        ? `Done! ${worked} of ${report.total} worked end to end${report.flagged + report.waiting ? `, and ${report.flagged + report.waiting} went to a person, as they should` : ""}.`
+        : `Running ${name} on 10 sample tickets in parallel. Nothing real is sent until you deploy.`,
+      title: report.finished ? "Test complete" : "Testing on 10 tickets",
+      subtitle: "Open any ticket to watch every step the agent took.",
+      body: <TestReport rows={rows} />,
+      cta: report.finished ? "Continue" : (
+        <>
+          <Loader2 className="animate-spin" /> Testing…
+        </>
+      ),
+      canNext: report.finished,
+    },
+    live: {
+      line: deployed ? `${name} is on the job. I'll keep an eye on it.` : "Looking good! Go live now, or keep it as a draft and come back later.",
+      title: deployed ? `${name} is live` : "Ready to go live?",
+      subtitle: deployed
+        ? "It works new tickets as they arrive. Risky actions wait for approval, and every step lands in the activity log."
+        : `${worked}/${report.total || 10} test tickets worked end to end. Risky actions will wait for a manager.`,
+      body: deployed ? null : (
+        <ul className="space-y-2.5 text-[15px]">
+          <Summary label="Uses" value={config?.allowedTools.map((t) => catalog.find((c) => c.name === t)?.label ?? t).join(", ")} />
+          <Summary label="Asks first for" value={config?.riskyTools.map((t) => catalog.find((c) => c.name === t)?.label ?? t).join(", ") || "Nothing"} />
+          <Summary label="Limits" value={config && `${config.guardrails.maxSteps} steps · $${config.guardrails.maxCostUsd.toFixed(2)} per run${config.allowedTools.includes("issue_refund") ? ` · refunds up to $${config.guardrails.maxRefundUsd}` : ""}`} />
+        </ul>
+      ),
+      cta: deployed ? (
+        <>
+          Open agent <ArrowRight />
+        </>
+      ) : busy ? (
+        <>
+          <Loader2 className="animate-spin" /> Deploying…
+        </>
+      ) : (
+        <>
+          <Rocket /> Go live
+        </>
+      ),
+      canNext: !busy,
+    },
+  };
+  const s = screens[step];
+  const canBack = step !== "describe" && !(draft && step === "meet") && !deployed && !busy;
 
   return (
-    <div className="space-y-6">
-      {/* Stepper */}
-      <ol className="flex flex-wrap items-center gap-2 text-[13px]">
-        {steps.map((s, i) => (
-          <li key={s.label} className="flex items-center gap-2">
-            <span
-              className={cn(
-                "flex size-5 items-center justify-center rounded-full border text-[11px] font-semibold",
-                i < currentIdx && "border-primary bg-primary text-white",
-                i === currentIdx && "border-primary text-primary",
-                i > currentIdx && "text-muted-foreground",
-              )}
-            >
-              {i < currentIdx ? <Check className="size-3" /> : i + 1}
-            </span>
-            <span className={cn(i === currentIdx ? "font-medium" : "text-muted-foreground")}>{s.label}</span>
-            {i < steps.length - 1 && <span className="mx-1 h-px w-6 bg-border" />}
-          </li>
-        ))}
-      </ol>
-
-      {error && <div className="rounded-lg border border-danger/20 bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</div>}
-
-      {(stage === "describe" || stage === "generating") && (
-        <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
-          <Card className="p-5">
-            <label htmlFor="describe" className="text-[15px] font-semibold tracking-tight">
-              What should your agent do?
-            </label>
-            <p className="mt-1 text-sm text-muted-foreground">Describe the job like you would to a new teammate. Harbor picks the tools, writes the instructions and applies your company&apos;s policies.</p>
-            <div className="relative mt-4">
-              <Textarea
-                ref={inputRef}
-                id="describe"
-                value={description}
-                disabled={stage === "generating"}
-                onChange={(e) => setDescription(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void generate();
-                }}
-                placeholder="e.g. Sort incoming support tickets by urgency and post urgent ones to #support-urgent…"
-                className="min-h-32 pb-12 text-[15px]"
-              />
-              <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
-                <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-                  <CornerDownLeft className="size-3" /> ⌘ Enter
-                </span>
-                <Button onClick={generate} disabled={stage === "generating" || description.trim().length < 8}>
-                  {stage === "generating" ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                  {stage === "generating" ? "Designing your agent…" : "Generate agent"}
-                </Button>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Try:</span>
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex.label}
-                  type="button"
-                  onClick={() => setDescription(ex.text)}
-                  className="cursor-pointer rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
-                >
-                  {ex.label}
-                </button>
-              ))}
-            </div>
-            {stage === "generating" && (
-              <div className="mt-5 flex items-center gap-4">
-                <Mascot kinds={["murmur"]} width={112} height={112} label="Harbor mascot writing your agent" />
-                <SpeechBubble className="flex-1">
-                  <div className="space-y-1.5">
-                    {["Reading your description", "Choosing the fewest tools that do the job", "Writing step-by-step instructions", "Applying company policy"].map((t, i) => (
-                      <div key={t} className="flex items-center gap-2 text-[14px] text-muted-foreground animate-rise" style={{ animationDelay: `${i * 450}ms` }}>
-                        <Loader2 className="size-3.5 animate-spin text-foreground" /> {t}
-                      </div>
-                    ))}
-                  </div>
-                </SpeechBubble>
-              </div>
-            )}
-          </Card>
-          <InheritedPanel workspace={workspace} llmLive={llmLive} />
-        </div>
-      )}
-
-      {stage === "config" && config && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              {draft?.sourceName && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="primary">Cloned</Badge> from {draft.sourceName}. Workspace tools, model and guardrails were carried over.
-                </div>
-              )}
-              {gen && (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <Sparkles className="size-4 text-primary" />
-                  Generated {gen.provider.startsWith("simulated") ? "offline by the Harbor simulator" : `by ${models.find((m) => m.id === workspace.defaultModel)?.label ?? "the model"}`} in {formatMs(gen.latencyMs)}.
-                  <span className="text-foreground/80">{gen.reasoning}</span>
-                </div>
-              )}
-              {gen && gen.adjustments.length > 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning-soft px-3 py-2 text-sm text-warning">
-                  <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-                  <div>
-                    <span className="font-medium">Company policy applied: </span>
-                    {gen.adjustments.join(" ")}
-                  </div>
-                </div>
-              )}
-            </div>
+    <div className="relative min-h-screen pb-16">
+      <AmbientGlow />
+      <div className={cn("mx-auto px-5", step === "test" ? "max-w-[880px]" : "max-w-[720px]")}>
+        <header className="flex items-center gap-4 pt-6">
+          <button type="button" onClick={exit} aria-label="Leave" className="glass flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-105">
+            <X className="size-5" />
+          </button>
+          <div
+            role="progressbar"
+            aria-label="Agent setup progress"
+            aria-valuemin={0}
+            aria-valuemax={QUESTIONS.length}
+            aria-valuenow={step === "live" ? QUESTIONS.length : q + 1}
+            className="h-3 flex-1 overflow-hidden rounded-full bg-black/[0.07]"
+          >
+            <div className="h-full rounded-full bg-foreground transition-[width] duration-500 ease-out" style={{ width: `${step === "live" ? 100 : ((q + 1) / QUESTIONS.length) * 100}%` }} />
           </div>
-          <ConfigCard config={config} onChange={setConfig} catalog={catalog} models={models} workspace={workspace} />
-          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
-            {!draft && (
-              <Button variant="ghost" onClick={() => setStage("describe")}>
-                <ArrowLeft /> Back
+          <span className="w-12 shrink-0 text-right text-[13px] font-semibold text-muted-foreground tabular-nums">{step === "live" ? "Done" : `${q + 1} / ${QUESTIONS.length}`}</span>
+        </header>
+
+        {/* Same tree on every step so the mascot canvas stays mounted and just hops to the next guide. */}
+        <section className="mt-8 flex items-center gap-4 sm:gap-6">
+          <Mascot kinds={GUIDE[step]} width={150} height={150} cue={cue} celebrate={deployed} interactive />
+          <SpeechBubble key={`${step}-${generating}-${report.finished}-${deployed}`} tail="left" className="flex-1 animate-rise">
+            {s.line}
+          </SpeechBubble>
+        </section>
+
+        <div key={step} className="mt-9 animate-rise">
+          <h1 className="display text-[30px] sm:text-[34px]">{s.title}</h1>
+          <p className="mt-2 max-w-[600px] text-[16px] leading-relaxed text-muted-foreground">{s.subtitle}</p>
+          {s.body && <div className={cn("mt-7", step === "test" ? "" : "glass rounded-[24px] p-5 sm:p-7")}>{s.body}</div>}
+          {error && <p className="mt-4 rounded-xl bg-danger-soft px-4 py-2.5 text-[14px] text-danger">{error}</p>}
+
+          <footer className="mt-8 flex flex-wrap items-center justify-between gap-3">
+            {canBack ? (
+              <Button variant="outline" size="lg" className="rounded-full px-6" onClick={back}>
+                <ArrowLeft /> Go back
               </Button>
-            )}
-            <div className="hidden text-sm text-muted-foreground md:block">
-              {config.allowedTools.length} tools · {config.riskyTools.length} need approval · max {config.guardrails.maxSteps} steps · {formatUsd(config.guardrails.maxCostUsd, 2)}/run
-            </div>
-            <Button className="ml-auto" size="lg" onClick={saveAndTest} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <FlaskConical />}
-              Save &amp; test on 10 tickets
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {stage === "testing" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Mascot kinds={["facet"]} width={112} height={112} cue={report.finished ? 1 : 0} label="Harbor mascot running the test" />
-            <SpeechBubble className="flex-1">
-              {report.finished
-                ? `Done! ${report.handled + report.flagged + report.waiting} of ${report.total} worked end to end. Have a look, then deploy when you're happy.`
-                : `Running ${config?.name ?? "your agent"} on 10 sample tickets in parallel. Open any of them to watch it work.`}
-            </SpeechBubble>
-          </div>
-          <TestReport rows={rows} />
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3">
-            {report.finished ? (
-              <>
-                <div className="text-sm">
-                  <span className="font-medium">
-                    {report.handled + report.flagged + report.waiting}/{report.total} worked end to end
-                  </span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · {report.flagged + report.waiting} routed to a human{report.failed ? ` · ${report.failed} failed` : ""}. Every step is logged.
-                  </span>
-                </div>
-                <div className="ml-auto flex gap-2">
-                  {report.waiting > 0 && (
-                    <Button variant="outline" asChild>
-                      <Link href="/approvals">Review approvals</Link>
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => setStage("config")}>
-                    Edit config
-                  </Button>
-                  <Button size="lg" onClick={deploy} disabled={busy}>
-                    {busy ? <Loader2 className="animate-spin" /> : <Rocket />} Deploy agent
-                  </Button>
-                </div>
-              </>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin text-primary" /> Agents run in parallel. Open any timeline to watch it live.
-              </div>
+              <span />
             )}
-          </div>
+            <div className="flex flex-wrap gap-3">
+              {step === "live" && !deployed && agentId && (
+                <Button variant="ghost" size="lg" className="rounded-full px-6" asChild>
+                  <Link href={`/agents/${agentId}`}>Keep as draft</Link>
+                </Button>
+              )}
+              {step === "live" && deployed && (
+                <Button variant="outline" size="lg" className="rounded-full px-6" asChild>
+                  <Link href="/dashboard">Go to Home</Link>
+                </Button>
+              )}
+              <Button size="lg" className="rounded-full px-8" onClick={next} disabled={!s.canNext}>
+                {s.cta}
+              </Button>
+            </div>
+          </footer>
         </div>
-      )}
-
-      {stage === "live" && config && agentId && (
-        <Card className="relative overflow-hidden px-6 py-10 text-center">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--success-soft),transparent_60%)]" />
-          <Mascot kinds={["orbit"]} width={150} height={150} celebrate className="relative mx-auto" label="Harbor mascot celebrating" />
-          <h2 className="display relative mt-5 text-[30px]">{config.name} is live</h2>
-          <p className="relative mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
-            It works new tickets as they arrive. Risky actions wait for approval, and every step lands in the activity log.
-          </p>
-          <div className="relative mt-3 flex justify-center">
-            <Badge variant="success">
-              <LiveDot /> Watching the support inbox
-            </Badge>
-          </div>
-          <div className="relative mt-6 flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link href={`/agents/${agentId}`}>
-                Open agent <ArrowRight />
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard">Monitoring dashboard</Link>
-            </Button>
-          </div>
-        </Card>
-      )}
+      </div>
     </div>
   );
 }
 
-function InheritedPanel({ workspace, llmLive }: { workspace: BuilderWorkspace; llmLive: boolean }) {
+function Summary({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Card className="h-fit p-5">
-      <div className="flex items-center gap-2 text-[13px] font-semibold">
-        <Info className="size-4 text-primary" /> Inherited from your workspace
+    <li className="flex gap-4">
+      <span className="w-32 shrink-0 text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </li>
+  );
+}
+
+function MeetStep({ config, onChange, catalog, adjustments }: { config: AgentConfig; onChange: (c: AgentConfig) => void; catalog: ToolCatalogEntry[]; adjustments: string[] }) {
+  const label = (t: string) => catalog.find((c) => c.name === t)?.label ?? t;
+  return (
+    <div className="space-y-5">
+      <div>
+        <FieldTitle>Name</FieldTitle>
+        <Input aria-label="Agent name" value={config.name} onChange={(e) => onChange({ ...config, name: e.target.value })} className="h-12 border-white/80 bg-white/60 text-[17px] font-semibold" />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Set up once in onboarding. Every new agent reuses it.</p>
-      <div className="mt-4 space-y-3 text-[13px]">
-        <div>
-          <div className="mb-1.5 text-xs font-medium text-muted-foreground">Connected tools</div>
-          <div className="space-y-1">
-            {workspace.connections.map((c) => (
-              <div key={c.key} className="flex items-center gap-2" title={c.detail}>
-                <span className={cn("size-1.5 rounded-full", c.live ? "bg-success" : "bg-muted-foreground/40")} />
-                {c.name}
-                <span className="ml-auto text-xs text-muted-foreground">{c.live ? "Live" : "Simulated"}</span>
+      <div>
+        <FieldTitle>Its job</FieldTitle>
+        <Textarea
+          aria-label="Description"
+          value={config.description}
+          rows={2}
+          onChange={(e) => onChange({ ...config, description: e.target.value })}
+          className="min-h-0 resize-none border-white/80 bg-white/60 text-[15px]"
+        />
+      </div>
+      <div>
+        <FieldTitle>On every ticket it can</FieldTitle>
+        <div className="flex flex-wrap gap-2">
+          {config.allowedTools.map((t) => (
+            <span key={t} className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-[14px] font-medium ring-1 ring-black/5">
+              {config.riskyTools.includes(t) ? <Lock className="size-3.5 text-muted-foreground" /> : <Check className="size-3.5 text-success" />}
+              {label(t)}
+            </span>
+          ))}
+        </div>
+      </div>
+      {adjustments.length > 0 && <p className="text-[13px] text-muted-foreground">Company policy applied: {adjustments.join(" ")}</p>}
+    </div>
+  );
+}
+
+function ToolsStep({ config, onChange, catalog, workspace }: { config: AgentConfig; onChange: (c: AgentConfig) => void; catalog: ToolCatalogEntry[]; workspace: BuilderWorkspace }) {
+  const policyRisky = new Set(workspace.policies.approvalRequiredTools);
+  const live = (conn: string) => workspace.connections.find((c) => c.key === conn)?.live;
+  const toggleTool = (name: string, on: boolean) => {
+    const allowedTools = on ? [...config.allowedTools, name] : config.allowedTools.filter((t) => t !== name);
+    let riskyTools = config.riskyTools.filter((t) => allowedTools.includes(t));
+    if (on && policyRisky.has(name) && !riskyTools.includes(name)) riskyTools = [...riskyTools, name];
+    let allowedSlackChannels = config.guardrails.allowedSlackChannels;
+    if (on && name === "post_slack_message" && !allowedSlackChannels.length) allowedSlackChannels = [workspace.policies.allowedSlackChannels[0]];
+    onChange({ ...config, allowedTools, riskyTools, guardrails: { ...config.guardrails, allowedSlackChannels } });
+  };
+  const toggleRisky = (name: string, on: boolean) => onChange({ ...config, riskyTools: on ? [...config.riskyTools, name] : config.riskyTools.filter((t) => t !== name) });
+  return (
+    <ul className="divide-y divide-black/5">
+      {catalog.map((t) => {
+        const on = config.allowedTools.includes(t.name);
+        const ask = config.riskyTools.includes(t.name);
+        const locked = policyRisky.has(t.name);
+        return (
+          <li key={t.name} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5 first:pt-0 last:pb-0">
+            <Switch checked={on} onChange={(v) => toggleTool(t.name, v)} label={t.label} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-[15px] font-semibold">
+                {t.label}
+                {!live(t.connection) && <span className="text-[12px] font-medium text-muted-foreground">simulated</span>}
               </div>
-            ))}
+              <div className="line-clamp-1 text-[13px] text-muted-foreground">{t.description}</div>
+            </div>
+            {on && (t.risky || locked) && (
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => toggleRisky(t.name, !ask)}
+                title={locked ? "Company policy: always needs a manager's approval" : undefined}
+                className={cn(
+                  "flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors",
+                  ask ? "bg-foreground text-background" : "bg-white/70 text-muted-foreground ring-1 ring-black/10 hover:text-foreground",
+                  locked && "cursor-default",
+                )}
+              >
+                {locked ? <Lock className="size-3.5" /> : ask ? <Check className="size-3.5" /> : null} Ask first
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LimitsStep({
+  config,
+  onChange,
+  models,
+  workspace,
+  llmLive,
+}: {
+  config: AgentConfig;
+  onChange: (c: AgentConfig) => void;
+  models: ModelInfo[];
+  workspace: BuilderWorkspace;
+  llmLive: boolean;
+}) {
+  const p = workspace.policies;
+  const g = config.guardrails;
+  const setG = <K extends keyof AgentConfig["guardrails"]>(k: K, v: AgentConfig["guardrails"][K]) => onChange({ ...config, guardrails: { ...g, [k]: v } });
+  const slack = config.allowedTools.includes("post_slack_message");
+  return (
+    <div className="space-y-7">
+      {config.allowedTools.includes("issue_refund") && (
+        <Slider id="refund" label="Largest refund it may issue" valueText={`$${g.maxRefundUsd}`} min={0} max={p.maxRefundUsd} step={5} value={Math.min(g.maxRefundUsd, p.maxRefundUsd)} onChange={(v) => setG("maxRefundUsd", v)} />
+      )}
+      <Slider id="steps" label="Steps per ticket" valueText={`${g.maxSteps} steps`} min={2} max={p.maxStepsPerRun} value={Math.min(g.maxSteps, p.maxStepsPerRun)} onChange={(v) => setG("maxSteps", v)} />
+      {slack && (
+        <div>
+          <FieldTitle>Slack channels it may post to</FieldTitle>
+          <div className="flex flex-wrap gap-2">
+            {p.allowedSlackChannels.map((c) => {
+              const on = g.allowedSlackChannels.includes(c);
+              return (
+                <Chip key={c} selected={on} onClick={() => setG("allowedSlackChannels", on ? g.allowedSlackChannels.filter((x) => x !== c) : [...g.allowedSlackChannels, c])}>
+                  {c}
+                </Chip>
+              );
+            })}
           </div>
         </div>
-        <div className="flex items-center justify-between border-t pt-3">
-          <span className="text-xs font-medium text-muted-foreground">Default model</span>
-          <span className="flex items-center gap-1.5">
-            <span className={cn("size-1.5 rounded-full", llmLive ? "bg-success" : "bg-muted-foreground/40")} />
-            <code className="font-mono text-xs">{workspace.defaultModel}</code>
-          </span>
+      )}
+      <details className="group rounded-2xl bg-white/50 ring-1 ring-black/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[14px] font-semibold">
+          Advanced: model and instructions
+          <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-4 px-4 pb-4">
+          <div>
+            <label htmlFor="model" className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+              Model{!llmLive && " (simulated until an Anthropic key is added)"}
+            </label>
+            <Select id="model" value={config.model} onChange={(e) => onChange({ ...config, model: e.target.value })}>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                  {m.id === workspace.defaultModel ? " · default" : ""}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="instructions" className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+              Instructions (the agent follows these step by step)
+            </label>
+            <Textarea id="instructions" value={config.instructions} onChange={(e) => onChange({ ...config, instructions: e.target.value })} className="min-h-56 font-mono text-[12.5px] leading-6" />
+          </div>
         </div>
-        <div className="border-t pt-3">
-          <div className="mb-1.5 text-xs font-medium text-muted-foreground">Policies</div>
-          <ul className="space-y-1 text-xs">
-            <li>
-              Approval required: <span className="font-mono">{workspace.policies.approvalRequiredTools.join(", ")}</span>
-            </li>
-            <li>Refunds over ${workspace.policies.maxRefundUsd} go to a human</li>
-            <li>
-              Max {workspace.policies.maxStepsPerRun} steps and ${workspace.policies.maxCostPerRunUsd.toFixed(2)} per run
-            </li>
-            <li>+ {workspace.policies.rules.length} company rules</li>
-          </ul>
-        </div>
-      </div>
-    </Card>
+      </details>
+    </div>
   );
 }
