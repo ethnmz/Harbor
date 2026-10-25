@@ -102,7 +102,7 @@ export function TopBar({ ownerName }: { ownerName: string }) {
       <h1 className="display mr-auto truncate text-[28px] md:text-[32px]">{sectionTitle(path)}</h1>
       <form
         role="search"
-        className="hidden h-12 w-[320px] items-center gap-3 rounded-xl border bg-card px-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] focus-within:border-foreground/30 lg:flex"
+        className="glass hidden h-12 w-[320px] items-center gap-3 rounded-xl px-4 focus-within:bg-white/80 lg:flex"
         onSubmit={(e) => {
           e.preventDefault();
           router.push(q.trim() ? `/agents?q=${encodeURIComponent(q.trim())}` : "/agents");
