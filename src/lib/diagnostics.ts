@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { anthropicProvider } from "./llm/anthropic";
 import { DEFAULT_MODEL } from "./llm/models";
 import { serpSearch } from "./tools/serpapi";
-import { appUrl, postToSlack } from "./tools/slack";
+import { appUrl, isWorkflowWebhook, postToSlack, slackWebhookUrl } from "./tools/slack";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 export type Check = { name: string; status: CheckStatus; detail: string; fix?: string };
@@ -98,14 +98,16 @@ export async function checkSerpApi(): Promise<Check> {
   }
 }
 
+const SLACK_SETUP =
+  "Simplest fix: api.slack.com/apps → your app → Incoming Webhooks → Add New Webhook → pick #support-urgent, put that URL (https://hooks.slack.com/services/…) in SLACK_WEBHOOK_URL, then redeploy.";
+
 export async function checkSlack(send: boolean): Promise<Check> {
-  if (!process.env.SLACK_WEBHOOK_URL)
-    return { name: "Slack", status: "warn", detail: "SLACK_WEBHOOK_URL not set: messages stay in Harbor", fix: "Create an incoming webhook for #support-urgent and set SLACK_WEBHOOK_URL." };
-  if (!send) return { name: "Slack", status: "pass", detail: "Webhook configured (not tested; pass --slack to send a test message)" };
+  const url = slackWebhookUrl();
+  if (!url) return { name: "Slack", status: "warn", detail: "SLACK_WEBHOOK_URL not set: messages stay in Harbor", fix: SLACK_SETUP.replace("Simplest fix: ", "") };
+  const kind = isWorkflowWebhook(url) ? "Workflow Builder webhook" : "Incoming webhook";
+  if (!send) return { name: "Slack", status: "pass", detail: `${kind} configured (not tested; pass --slack to send a test message)` };
   const r = await postToSlack({ channel: "#support-urgent", text: ":white_check_mark: Harbor is connected. Urgent tickets and approval requests will appear here.", context: "Connection test" });
-  return r.delivered
-    ? { name: "Slack", status: "pass", detail: "Test message delivered" }
-    : { name: "Slack", status: "fail", detail: r.error ?? "Not delivered", fix: "Re-create the incoming webhook and update SLACK_WEBHOOK_URL." };
+  return r.delivered ? { name: "Slack", status: "pass", detail: `Test message delivered (${kind.toLowerCase()})` } : { name: "Slack", status: "fail", detail: r.error ?? "Not delivered", fix: SLACK_SETUP };
 }
 
 export function checkAppUrl(): Check {
