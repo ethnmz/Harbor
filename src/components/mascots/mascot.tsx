@@ -89,7 +89,6 @@ export function Mascot({
             cue={cue}
             interactive={interactive}
             backdrop={backdrop ?? false}
-            quality={Math.min(width / kinds.length, height) < 220 ? "low" : "high"}
             paused={!visible}
             still={still}
             celebrate={celebrate}

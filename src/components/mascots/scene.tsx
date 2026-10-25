@@ -3,10 +3,10 @@
 /**
  * The glass mascots, ported from the "AI Agent Mascot Models" Figma Make file (src/Mascots.tsx).
  * Geometry and materials are unchanged; Harbor adds several mascots per canvas, a transparent
- * background, a hop on `cue`, a lighter quality for small sizes, and pausing.
+ * background, a hop on `cue`, and pausing off screen.
  * Only ever loaded on the client (see mascot.tsx).
  */
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, Lightformer, MeshTransmissionMaterial, OrbitControls } from "@react-three/drei";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
@@ -29,13 +29,20 @@ if (typeof window !== "undefined") {
 
 const tintOf = (color: string) => new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.86);
 
-type Quality = { samples: number; resolution: number };
+/**
+ * The refraction buffer is a square snapshot stretched over the whole canvas, so it must match the
+ * canvas's device pixels to stay sharp: never below the Figma file's 512, up to 1024 for big canvases.
+ */
+function useBufferSize() {
+  const { size, viewport } = useThree();
+  return Math.min(1024, Math.max(512, Math.ceil((Math.max(size.width, size.height) * viewport.dpr) / 128) * 128));
+}
 
-const Glass = ({ bg, q }: { bg: THREE.Color; q: Quality }) => (
+const Glass = ({ bg }: { bg: THREE.Color }) => (
   <MeshTransmissionMaterial
     background={bg}
-    samples={q.samples}
-    resolution={q.resolution}
+    samples={6}
+    resolution={useBufferSize()}
     transmission={1}
     roughness={0.06}
     thickness={0.8}
@@ -54,7 +61,7 @@ const Glow = ({ color, intensity = 2.2 }: { color: string; intensity?: number })
   <meshStandardMaterial color={color} emissive={color} emissiveIntensity={intensity} toneMapped={false} />
 );
 
-type AgentProps = { color: string; bg: THREE.Color; q: Quality };
+type AgentProps = { color: string; bg: THREE.Color };
 
 function Face({ z, y = 0, color, offset = 0 }: { z: number; y?: number; color: string; offset?: number }) {
   const ref = useRef<THREE.Group>(null);
@@ -88,7 +95,7 @@ function Face({ z, y = 0, color, offset = 0 }: { z: number; y?: number; color: s
 }
 
 /** Orbit: a glass pebble with an antenna and a little moon on a ring. */
-function OrbitAgent({ color, bg, q }: AgentProps) {
+function OrbitAgent({ color, bg }: AgentProps) {
   const ring = useRef<THREE.Group>(null);
   const bead = useRef<THREE.Mesh>(null);
   useFrame(({ clock }, d) => {
@@ -99,7 +106,7 @@ function OrbitAgent({ color, bg, q }: AgentProps) {
     <group>
       <mesh scale={[1.1, 0.92, 0.8]}>
         <sphereGeometry args={[1, 64, 64]} />
-        <Glass bg={bg} q={q} />
+        <Glass bg={bg} />
       </mesh>
       <mesh position={[0.15, 1.08, 0]} rotation={[0, 0, -0.25]}>
         <cylinderGeometry args={[0.025, 0.025, 0.4, 12]} />
@@ -127,7 +134,7 @@ function OrbitAgent({ color, bg, q }: AgentProps) {
 }
 
 /** Facet: a hexagonal crystal with a pulsing core. */
-function FacetAgent({ color, bg, q }: AgentProps) {
+function FacetAgent({ color, bg }: AgentProps) {
   const core = useRef<THREE.Mesh>(null);
   const geometry = useMemo(() => {
     const pts = [
@@ -150,7 +157,7 @@ function FacetAgent({ color, bg, q }: AgentProps) {
   return (
     <group>
       <mesh geometry={geometry} rotation={[0, Math.PI / 6, 0]}>
-        <Glass bg={bg} q={q} />
+        <Glass bg={bg} />
       </mesh>
       <mesh ref={core} position={[0, -0.3, -0.1]}>
         <octahedronGeometry args={[0.26, 0]} />
@@ -162,7 +169,7 @@ function FacetAgent({ color, bg, q }: AgentProps) {
 }
 
 /** Murmur: a speech bubble that is always mid-thought. */
-function MurmurAgent({ color, bg, q }: AgentProps) {
+function MurmurAgent({ color, bg }: AgentProps) {
   const dots = useRef<THREE.Group>(null);
   const geometry = useMemo(() => {
     const [w, h, r] = [2, 1.35, 0.4];
@@ -191,7 +198,7 @@ function MurmurAgent({ color, bg, q }: AgentProps) {
   return (
     <group position={[0, 0.1, 0]}>
       <mesh geometry={geometry}>
-        <Glass bg={bg} q={q} />
+        <Glass bg={bg} />
       </mesh>
       <group ref={dots}>
         {[-1, 0, 1].map((i) => (
@@ -295,7 +302,6 @@ export type MascotSceneProps = {
   cue?: number;
   interactive?: boolean;
   backdrop?: boolean;
-  quality?: "high" | "low";
   paused?: boolean;
   still?: boolean;
   /** Hop once on mount (e.g. "your agent is live"). */
@@ -303,17 +309,14 @@ export type MascotSceneProps = {
   onReady?: () => void;
 };
 
-export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, quality = "high", paused = false, still = false, celebrate = false, onReady }: MascotSceneProps) {
+export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, paused = false, still = false, celebrate = false, onReady }: MascotSceneProps) {
   const n = kinds.length;
-  // Each glass body re-renders the scene for its refraction, so cost grows with the number of
-  // mascots squared; small and group views use a much lighter buffer.
-  const q = quality === "high" && n === 1 ? { samples: 6, resolution: 512 } : { samples: 2, resolution: n > 1 ? 160 : 256 };
   const tints = useMemo(() => kinds.map((k) => tintOf(MASCOTS[k].color)), [kinds]);
   const lead = MASCOTS[kinds[0]].color;
   return (
     <Canvas
       camera={{ position: [0, 0, 5.6 + (n - 1) * 2.8], fov: 35 }}
-      dpr={n > 1 ? 1 : [1, 1.5]}
+      dpr={[1, 2]}
       gl={{ alpha: true, antialias: true }}
       frameloop={paused ? "never" : still ? "demand" : "always"}
       onCreated={() => onReady?.()}
@@ -337,7 +340,7 @@ export default function MascotScene({ kinds, cue = 0, interactive = false, backd
             <Float speed={still ? 0 : 2} rotationIntensity={still ? 0 : 0.25} floatIntensity={still ? 0 : 0.6}>
               <Hop cue={cue} delay={i * 0.09} celebrate={celebrate}>
                 <Reactive interactive={interactive}>
-                  <Agent color={color} bg={tints[i]} q={q} />
+                  <Agent color={color} bg={tints[i]} />
                 </Reactive>
               </Hop>
             </Float>
