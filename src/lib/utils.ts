@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatUsd(n: number, digits?: number) {
   const d = digits ?? (n !== 0 && Math.abs(n) < 0.1 ? 4 : 2);
-  return `$${n.toFixed(d)}`;
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 }
 
 export function formatMs(ms: number) {

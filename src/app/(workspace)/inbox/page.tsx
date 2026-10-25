@@ -1,58 +1,41 @@
-import { Bot, Inbox } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { categoryLabel, UrgencyBadge } from "@/components/status";
-import { Badge, EmptyState, Panel } from "@/components/ui/primitives";
-import { listTickets } from "@/lib/queries";
-import { timeAgo } from "@/lib/utils";
+import { TicketDetails } from "@/components/inbox/details";
+import { InboxSidebar, type InboxQuery } from "@/components/inbox/sidebar";
+import { Thread } from "@/components/inbox/thread";
+import { EmptyState } from "@/components/ui/primitives";
+import { INBOX_VIEWS, ticketState } from "@/lib/inbox";
+import { inboxTickets, listAgents, ticketThread } from "@/lib/queries";
+import { getWorkspace } from "@/lib/seed";
 
-export default async function InboxPage() {
-  const rows = await listTickets();
-  const now = Date.now();
-  const triaged = rows.filter((r) => r.ticket.urgency).length;
+/** Three-pane helpdesk: views and conversations, the ticket as a thread, and the customer. */
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ view?: string; channel?: string; t?: string }> }) {
+  const sp = await searchParams;
+  const [rows, agents, ws] = await Promise.all([inboxTickets(), listAgents(), getWorkspace()]);
+  const withState = rows.map((r) => ({ ...r, state: ticketState(r.ticket.status, r.run) }));
+  const view = INBOX_VIEWS.find((v) => v.key === sp.view) ?? INBOX_VIEWS[0];
+  const query: InboxQuery = { view: view.key, channel: sp.channel || undefined };
+  const visible = withState.filter((r) => view.match(r.state) && (!query.channel || r.ticket.channel === query.channel));
+  const selectedId = sp.t && withState.some((r) => r.ticket.id === sp.t) ? sp.t : (visible[0]?.ticket.id ?? null);
+  const selected = withState.find((r) => r.ticket.id === selectedId);
+  const thread = selectedId ? await ticketThread(selectedId) : null;
+  const agentOptions = agents.map(({ agent }) => ({ id: agent.id, name: agent.name, live: agent.status === "live" }));
+
   return (
-    <Panel title="Support inbox" description={`Sandbox helpdesk for Tidewell. Sorted by the urgency your agents assigned. ${triaged} of ${rows.length} tickets triaged.`}>
+    <div className="grid overflow-hidden rounded-[24px] border border-[#eceef1] bg-card shadow-[0_2px_12px_rgba(16,24,40,0.04)] lg:grid-cols-[300px_minmax(0,1fr)] xl:h-[calc(100dvh-140px)] xl:min-h-[620px] xl:grid-cols-[300px_minmax(0,1fr)_340px]">
       <AutoRefresh />
-      {!rows.length ? (
-        <EmptyState icon={<Inbox />} title="Inbox is empty" />
+      <InboxSidebar rows={withState} visible={visible} query={{ ...query, t: selectedId ?? undefined }} selected={selectedId} />
+      {thread && selected ? (
+        <>
+          <Thread thread={thread} state={selected.state} ownerName={ws.ownerName} agents={agentOptions} />
+          <TicketDetails thread={thread} state={selected.state} />
+        </>
       ) : (
-        <div className="overflow-hidden rounded-2xl border">
-          <ul className="divide-y">
-            {rows.map(({ ticket: t, agentName }) => (
-              <li key={t.id} className="grid gap-2 px-5 py-4 transition-colors hover:bg-muted/50 md:grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_90px]">
-                <div className="flex items-start gap-2 md:flex-col md:gap-1">
-                  <UrgencyBadge urgency={t.urgency} />
-                  {t.inTestSet && <span className="text-[11px] text-muted-foreground">test set</span>}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] text-muted-foreground tabular-nums">{t.id}</span>
-                    {t.category && <Badge variant="outline">{categoryLabel(t.category)}</Badge>}
-                  </div>
-                  <div className="truncate text-[15px] font-semibold">{t.subject}</div>
-                  <div className="truncate text-[13px] text-muted-foreground">
-                    {t.customerName} · {t.company} · {t.customer.plan}
-                  </div>
-                </div>
-                <div className="text-[13px] text-muted-foreground">
-                  {t.triageNote ? (
-                    <>
-                      <span className="line-clamp-2 text-foreground/85">{t.triageNote}</span>
-                      {agentName && (
-                        <span className="mt-0.5 flex items-center gap-1 text-[11px]">
-                          <Bot className="size-3" /> {agentName}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="line-clamp-2">{t.body}</span>
-                  )}
-                </div>
-                <div className="text-right text-xs text-muted-foreground">{timeAgo(t.receivedAt, now)}</div>
-              </li>
-            ))}
-          </ul>
+        <div className="p-6 xl:col-span-2">
+          <EmptyState mascot="murmur" title="No tickets in this view">
+            Try another view or channel on the left.
+          </EmptyState>
         </div>
       )}
-    </Panel>
+    </div>
   );
 }
