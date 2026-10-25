@@ -217,8 +217,8 @@ export function AgentBuilder({
             </div>
             {stage === "generating" && (
               <div className="mt-5 flex items-center gap-4">
-                <Mascot kinds={["murmur"]} width={112} height={112} label="Murmur is writing your agent" />
-                <SpeechBubble speaker="murmur" className="flex-1">
+                <Mascot kinds={["murmur"]} width={112} height={112} label="Harbor mascot writing your agent" />
+                <SpeechBubble className="flex-1">
                   <div className="space-y-1.5">
                     {["Reading your description", "Choosing the fewest tools that do the job", "Writing step-by-step instructions", "Applying company policy"].map((t, i) => (
                       <div key={t} className="flex items-center gap-2 text-[14px] text-muted-foreground animate-rise" style={{ animationDelay: `${i * 450}ms` }}>
@@ -282,8 +282,8 @@ export function AgentBuilder({
       {stage === "testing" && (
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <Mascot kinds={["facet"]} width={112} height={112} cue={report.finished ? 1 : 0} label="Facet is running the test" />
-            <SpeechBubble speaker="facet" className="flex-1">
+            <Mascot kinds={["facet"]} width={112} height={112} cue={report.finished ? 1 : 0} label="Harbor mascot running the test" />
+            <SpeechBubble className="flex-1">
               {report.finished
                 ? `Done! ${report.handled + report.flagged + report.waiting} of ${report.total} worked end to end. Have a look, then deploy when you're happy.`
                 : `Running ${config?.name ?? "your agent"} on 10 sample tickets in parallel. Open any of them to watch it work.`}
@@ -328,7 +328,7 @@ export function AgentBuilder({
       {stage === "live" && config && agentId && (
         <Card className="relative overflow-hidden px-6 py-10 text-center">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--success-soft),transparent_60%)]" />
-          <Mascot kinds={["orbit"]} width={150} height={150} celebrate className="relative mx-auto" label="Orbit celebrating" />
+          <Mascot kinds={["orbit"]} width={150} height={150} celebrate className="relative mx-auto" label="Harbor mascot celebrating" />
           <h2 className="display relative mt-5 text-[30px]">{config.name} is live</h2>
           <p className="relative mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
             It works new tickets as they arrive. Risky actions wait for approval, and every step lands in the activity log.

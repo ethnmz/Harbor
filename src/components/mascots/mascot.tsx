@@ -77,7 +77,7 @@ export function Mascot({
     <div
       ref={ref}
       role="img"
-      aria-label={label ?? kinds.map((k) => MASCOTS[k].name).join(", ")}
+      aria-label={label ?? (kinds.length > 1 ? "Harbor's mascots" : "Harbor mascot")}
       className={cn("relative shrink-0", className)}
       style={{ width, height }}
     >
@@ -104,6 +104,9 @@ const SHAPES: Record<MascotKind, string> = {
   orbit: "rounded-[50%] aspect-[1.1/0.92]",
   facet: "aspect-[0.8/1] [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)]",
   murmur: "rounded-[30%] aspect-[1.45/1]",
+  nimbus: "rounded-[45%] aspect-[1.5/1]",
+  lumen: "rounded-t-full rounded-b-[30%] aspect-[0.75/1]",
+  sentry: "rounded-t-[20%] rounded-b-[50%] aspect-[0.85/1]",
 };
 
 /** Flat glass stand-in with the same face: ink eyes and glowing cheeks. */
