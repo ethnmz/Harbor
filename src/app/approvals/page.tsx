@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ApprovalsBoard, type ApprovalGroup } from "@/components/approvals-board";
-import { Badge, Card, PageHeader } from "@/components/ui/primitives";
+import { Badge, Panel } from "@/components/ui/primitives";
 import { toJson } from "@/lib/json";
 import { listApprovals } from "@/lib/queries";
 import { getWorkspace } from "@/lib/seed";
@@ -19,9 +19,9 @@ export default async function ApprovalsPage() {
   const now = Date.now();
 
   return (
-    <>
-      <PageHeader
-        title="Approvals"
+    <div className="space-y-6">
+      <Panel
+        title="Waiting on you"
         description={
           <>
             Agents pause before risky actions. Your workspace policy requires a manager for{" "}
@@ -34,51 +34,53 @@ export default async function ApprovalsPage() {
             . Requests are also posted to Slack.
           </>
         }
-      />
-      <ApprovalsBoard groups={groups} />
+      >
+        <ApprovalsBoard groups={groups} />
+      </Panel>
 
-      <h2 className="mt-10 mb-3 text-[15px] font-semibold tracking-tight">Decision history</h2>
+      <Panel title="Decision history">
       {history.length ? (
-        <Card className="overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+        <div className="overflow-hidden rounded-2xl border">
+          <table className="w-full text-[14px]">
+            <thead className="border-b bg-muted text-left text-[12px] tracking-[0.04em] text-muted-foreground uppercase">
               <tr>
-                <th className="px-4 py-2 font-medium">Action</th>
-                <th className="px-4 py-2 font-medium">Agent · ticket</th>
-                <th className="px-4 py-2 font-medium">Decision</th>
-                <th className="hidden px-4 py-2 font-medium md:table-cell">By</th>
-                <th className="px-4 py-2 text-right font-medium">When</th>
+                <th className="px-4 py-3 font-semibold">Action</th>
+                <th className="px-4 py-3 font-semibold">Agent · ticket</th>
+                <th className="px-4 py-3 font-semibold">Decision</th>
+                <th className="hidden px-4 py-3 font-semibold md:table-cell">By</th>
+                <th className="px-4 py-3 text-right font-semibold">When</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {history.map(({ approval, agentName, ticket }) => (
                 <tr key={approval.id}>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-3">
                     <code className="font-mono text-xs">{approval.action}</code>
                     {approval.action === "issue_refund" && <span className="ml-2 tabular-nums">${Number(approval.args.amount_usd).toFixed(2)}</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {agentName} ·{" "}
-                    <Link href={`/runs/${approval.runId}`} className="font-mono text-xs hover:text-primary">
+                    <Link href={`/runs/${approval.runId}`} className="font-medium text-foreground tabular-nums underline-offset-4 hover:underline">
                       {ticket?.id}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-3">
                     <Badge variant={approval.status === "approved" ? "success" : "danger"} className="capitalize">
                       {approval.status}
                     </Badge>
                     {approval.note && <span className="ml-2 text-xs text-muted-foreground">&ldquo;{approval.note}&rdquo;</span>}
                   </td>
-                  <td className="hidden px-4 py-2.5 text-muted-foreground md:table-cell">{approval.decidedBy}</td>
-                  <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">{timeAgo(approval.decidedAt, now)}</td>
+                  <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{approval.decidedBy}</td>
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">{timeAgo(approval.decidedAt, now)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </Card>
+        </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No decisions yet.</p>
+        <p className="rounded-2xl bg-muted px-5 py-8 text-center text-[14px] text-muted-foreground">No decisions yet.</p>
       )}
-    </>
+      </Panel>
+    </div>
   );
 }

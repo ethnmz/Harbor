@@ -112,7 +112,7 @@ export function TestReport({ rows }: { rows: BatchRow[] }) {
             <li key={r.id} className="group grid grid-cols-[1fr_auto] items-start gap-3 px-5 py-3 animate-rise md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_auto]">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] text-muted-foreground">{r.ticketId}</span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">{r.ticketId}</span>
                   {r.urgency && <UrgencyBadge urgency={r.urgency} />}
                   {r.searches > 0 && (
                     <span title="Used SerpApi" className="text-primary">

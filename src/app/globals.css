@@ -1,23 +1,24 @@
 @import "tailwindcss";
 
-/* Monochrome UI; color comes from the agents' gradient orbs and from status. */
+/* Mota-style UI: light gray dotted canvas, white cards, black icon rail.
+   Color comes from the agents' gradient orbs, status, and the four data series. */
 :root {
-  --background: #fafaf9;
-  --foreground: #121212;
+  --background: #f3f5f7;
+  --foreground: #1d1d1b;
   --card: #ffffff;
-  --card-foreground: #121212;
-  --muted: #f3f3f1;
-  --muted-foreground: #6f6f6b;
-  --border: #e7e6e3;
-  --input: #dddcd8;
-  --primary: #141414;
+  --card-foreground: #1d1d1b;
+  --muted: #f3f5f7;
+  --muted-foreground: #64676c;
+  --border: #e7e9ec;
+  --input: #e1e4e8;
+  --primary: #1d1d1b;
   --primary-foreground: #ffffff;
-  --primary-soft: #efefec;
-  --accent: #f5f5f3;
-  --ring: #141414;
-  --tile: #f4f4f2;
-  --tile-hover: #ecebe8;
-  --ink: #141414;
+  --primary-soft: #eef0f3;
+  --accent: #f6f7f9;
+  --ring: #1d1d1b;
+  --tile: #f3f5f7;
+  --tile-hover: #eaedf0;
+  --ink: #1d1d1b;
   --success: #0f9f6e;
   --success-soft: #e7f7f0;
   --warning: #c27803;
@@ -26,12 +27,15 @@
   --danger-soft: #fdecef;
   --info: #2563eb;
   --info-soft: #eaf1fe;
-  --sidebar: #ffffff;
-  --canvas: #e3e3e5;
-  --soft-blue: #e8f0fb;
-  --soft-blue-strong: #cfe1f7;
-  --series-1: #4a8bdb;
-  --series-2: #e38a35;
+  --rail: #1d1d1b;
+  --rail-active: #30302e;
+  --rail-icon: #8e8e8a;
+  --dot: #d5d8dc;
+  /* Categorical data series, in fixed order (validated: CVD-safe on white; always shown with labels). */
+  --series-1: #8a85ec;
+  --series-2: #3fb5a8;
+  --series-3: #e0a92e;
+  --series-4: #5b73e6;
 }
 
 @theme inline {
@@ -59,15 +63,15 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
-  --color-sidebar: var(--sidebar);
-  --color-canvas: var(--canvas);
-  --color-soft-blue: var(--soft-blue);
-  --color-soft-blue-strong: var(--soft-blue-strong);
+  --color-rail: var(--rail);
+  --color-rail-active: var(--rail-active);
+  --color-rail-icon: var(--rail-icon);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
-  --font-sans: var(--font-geist-sans);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --font-sans: var(--font-urbanist);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-display);
 
   --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-sonar: sonar 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -104,14 +108,19 @@
   }
 }
 
-* {
-  border-color: var(--border);
+/* In the base layer so border-color utilities (border-input, border-foreground…) can override it. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 body {
-  background: var(--card);
+  background-color: var(--background);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.3px);
+  background-size: 22px 22px;
   color: var(--foreground);
-  font-feature-settings: "cv11", "ss01";
+  font-weight: 450;
 }
 
 ::selection {
@@ -119,17 +128,45 @@ body {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, var(--muted) 25%, #e9e8e5 37%, var(--muted) 63%);
+  background: linear-gradient(90deg, var(--muted) 25%, #e8ebee 37%, var(--muted) 63%);
   background-size: 400% 100%;
   animation: var(--animate-shimmer);
 }
 
-/* Display type: serif headline, optional gray continuation line. */
-.display {
-  font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.08;
+/* Display type: page and card titles. */
+@layer components {
+  .display {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+}
+
+/* Hover label for icon-only controls (the rail). */
+.tip {
+  pointer-events: none;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  translate: -4px -50%;
+  white-space: nowrap;
+  border-radius: 8px;
+  background: var(--rail);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  opacity: 0;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  transition:
+    opacity 0.15s,
+    translate 0.15s;
+  z-index: 50;
+}
+.group:hover > .tip,
+.group:focus-visible > .tip {
+  opacity: 1;
+  translate: 0 -50%;
 }
 
 @media (prefers-reduced-motion: reduce) {

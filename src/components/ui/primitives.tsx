@@ -5,13 +5,13 @@ import { cn } from "@/lib/utils";
 // Card ----------------------------------------------------------------------
 
 export function Card({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} {...props} />;
+  return <div className={cn("rounded-2xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} {...props} />;
 }
 export function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("flex flex-col gap-1 px-5 pt-5", className)} {...props} />;
 }
 export function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
-  return <h3 className={cn("text-[15px] font-semibold tracking-tight", className)} {...props} />;
+  return <h3 className={cn("text-[16px] font-semibold", className)} {...props} />;
 }
 export function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
   return <p className={cn("text-sm text-muted-foreground", className)} {...props} />;
@@ -21,6 +21,40 @@ export function CardContent({ className, ...props }: React.ComponentProps<"div">
 }
 export function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("flex items-center gap-2 border-t px-5 py-3", className)} {...props} />;
+}
+
+/** Mota-style section card: big radius, generous padding, title + gray subtitle + actions. */
+export function Panel({
+  title,
+  description,
+  actions,
+  eyebrow,
+  className,
+  children,
+}: {
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+  eyebrow?: React.ReactNode;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const header = title || description || actions || eyebrow;
+  return (
+    <section className={cn("rounded-[24px] border border-[#eceef1] bg-card p-6 shadow-[0_2px_12px_rgba(16,24,40,0.04)] md:p-8", className)}>
+      {header && (
+        <div className={cn("flex flex-wrap items-start justify-between gap-4", children ? "mb-6" : undefined)}>
+          <div className="min-w-0">
+            {eyebrow && <div className="mb-2 text-[13px] font-medium text-muted-foreground">{eyebrow}</div>}
+            {title && <h2 className="display text-[24px]">{title}</h2>}
+            {description && <div className="mt-1 max-w-3xl text-[15px] leading-relaxed text-muted-foreground">{description}</div>}
+          </div>
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        </div>
+      )}
+      {children}
+    </section>
+  );
 }
 
 // Badge ---------------------------------------------------------------------
@@ -48,20 +82,22 @@ export function Badge({ className, variant, ...props }: React.ComponentProps<"sp
 
 // Form controls -------------------------------------------------------------
 
+// Gray filled fields with a hairline border, like the reference's ID/password boxes.
 const control =
-  "w-full rounded-md border border-input bg-card px-3 text-sm shadow-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60";
+  "w-full rounded-xl border border-input bg-muted px-4 text-[15px] font-medium outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/80 focus-visible:border-foreground/35 focus-visible:bg-card focus-visible:ring-4 focus-visible:ring-foreground/5 disabled:opacity-60";
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
-  return <input className={cn(control, "h-9", className)} {...props} />;
+  return <input className={cn(control, "h-12", className)} {...props} />;
 }
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return <textarea className={cn(control, "min-h-24 py-2 leading-relaxed", className)} {...props} />;
+  return <textarea className={cn(control, "min-h-24 py-3 leading-relaxed", className)} {...props} />;
 }
 export function Select({ className, ...props }: React.ComponentProps<"select">) {
-  return <select className={cn(control, "h-9 pr-8", className)} {...props} />;
+  return <select className={cn(control, "h-12 cursor-pointer pr-9", className)} {...props} />;
 }
+/** Small uppercase field label ("YOUR ID"). */
 export function Label({ className, ...props }: React.ComponentProps<"label">) {
-  return <label className={cn("text-[13px] font-medium text-foreground", className)} {...props} />;
+  return <label className={cn("text-[12px] font-semibold tracking-[0.04em] text-muted-foreground uppercase", className)} {...props} />;
 }
 
 export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string }) {
@@ -99,49 +135,40 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 
 export function EmptyState({ icon, title, children, action }: { icon?: React.ReactNode; title: string; children?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card/60 px-6 py-12 text-center">
-      {icon && <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-primary-soft text-primary [&_svg]:size-5">{icon}</div>}
-      <p className="text-sm font-medium">{title}</p>
-      {children && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{children}</p>}
+    <div className="flex flex-col items-center justify-center rounded-2xl bg-muted px-6 py-12 text-center">
+      {icon && <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-card text-foreground shadow-sm [&_svg]:size-5">{icon}</div>}
+      <p className="text-[15px] font-semibold">{title}</p>
+      {children && <p className="mt-1 max-w-sm text-[14px] text-muted-foreground">{children}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
+/** Page intro as a header-only card; the section name itself lives in the top bar. */
 export function PageHeader({
   title,
-  tagline,
   description,
   actions,
   eyebrow,
+  className,
 }: {
   title: React.ReactNode;
-  /** Gray continuation line under the title, V7-style. */
-  tagline?: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   eyebrow?: React.ReactNode;
+  className?: string;
 }) {
-  return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        {eyebrow && <div className="mb-2 text-xs font-medium text-muted-foreground">{eyebrow}</div>}
-        <h1 className="display text-[32px] text-foreground">{title}</h1>
-        {tagline && <p className="display text-[32px] text-muted-foreground/70">{tagline}</p>}
-        {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
-  );
+  return <Panel title={title} description={description} actions={actions} eyebrow={eyebrow} className={cn("mb-6", className)} />;
 }
 
+/** Gray tile with a big number, like the reference's storage tiles. */
 export function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: "success" | "warning" | "danger" }) {
   return (
-    <Card className="px-4 py-3.5">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-muted px-5 py-4">
+      <div className="text-[14px] font-medium text-foreground/80">{label}</div>
       <div
         className={cn(
-          "mt-1 text-[26px] font-medium tracking-tight tabular-nums",
+          "mt-1 text-[28px] font-semibold tabular-nums",
           tone === "success" && "text-success",
           tone === "warning" && "text-warning",
           tone === "danger" && "text-danger",
@@ -149,7 +176,7 @@ export function Stat({ label, value, hint, tone }: { label: string; value: React
       >
         {value}
       </div>
-      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
-    </Card>
+      {hint && <div className="mt-0.5 text-[13px] text-muted-foreground">{hint}</div>}
+    </div>
   );
 }

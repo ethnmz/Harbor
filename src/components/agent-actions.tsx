@@ -82,12 +82,10 @@ export function AgentActions({
         </Button>
       </div>
 
-      <Card className="flex flex-wrap items-end gap-2 p-3">
-        <div className="min-w-60 flex-1 space-y-1">
-          <Label htmlFor="ticket" className="text-xs text-muted-foreground">
-            Run on a single ticket
-          </Label>
-          <Select id="ticket" value={ticket} onChange={(e) => setTicket(e.target.value)}>
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-muted p-4">
+        <div className="min-w-60 flex-1 space-y-2">
+          <Label htmlFor="ticket">Run on a single ticket</Label>
+          <Select id="ticket" value={ticket} onChange={(e) => setTicket(e.target.value)} className="bg-card">
             {tickets.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.id} · {t.subject}
@@ -96,7 +94,8 @@ export function AgentActions({
           </Select>
         </div>
         <Button
-          variant="secondary"
+          size="lg"
+          variant="outline"
           disabled={!!busy || !ticket}
           onClick={() =>
             run("ticket", async () => {
@@ -109,7 +108,8 @@ export function AgentActions({
         </Button>
         {status === "live" && (
           <Button
-            variant="secondary"
+            size="lg"
+            variant="outline"
             disabled={!!busy || !openInbox}
             onClick={() =>
               run("inbox", async () => {
@@ -122,8 +122,8 @@ export function AgentActions({
             {busy === "inbox" ? <Loader2 className="animate-spin" /> : <Inbox />} Work the inbox ({openInbox} open)
           </Button>
         )}
-      </Card>
-      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+      </div>
+      {msg && <p className="text-[14px] text-muted-foreground">{msg}</p>}
       {cloneOpen && <CloneDialog agentId={agentId} agentName={agentName} onClose={() => setCloneOpen(false)} />}
     </div>
   );

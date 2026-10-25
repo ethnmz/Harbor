@@ -1,15 +1,12 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { AgentLibrary, type LibraryItem } from "@/components/agent-library";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/primitives";
+import { Panel } from "@/components/ui/primitives";
 import { agentCategory, agentTags } from "@/lib/agent-meta";
 import { listAgents, listTemplates } from "@/lib/queries";
 import { getWorkspace } from "@/lib/seed";
 import { pct } from "@/lib/utils";
 
-export default async function AgentLibraryPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const { view } = await searchParams;
+export default async function AgentLibraryPage({ searchParams }: { searchParams: Promise<{ view?: string; q?: string }> }) {
+  const { view, q } = await searchParams;
   const [agents, templates, ws] = await Promise.all([listAgents(), listTemplates(), getWorkspace()]);
 
   const items: LibraryItem[] = [
@@ -39,20 +36,16 @@ export default async function AgentLibraryPage({ searchParams }: { searchParams:
   const live = agents.filter((a) => a.agent.status === "live").length;
 
   return (
-    <>
-      <PageHeader
-        title="Agents"
-        description={`Your agents and the templates your team can start from. Every agent inherits ${ws.company}'s tools, model and policies. ${live} live now.`}
-        actions={
-          <Button asChild>
-            <Link href="/agents/new">
-              <Plus /> New agent
-            </Link>
-          </Button>
-        }
+    <Panel
+      title="Agent library"
+      description={`Your agents and the templates your team can start from. Every agent inherits ${ws.company}'s tools, model and policies. ${live} live now.`}
+    >
+      <AgentLibrary
+        key={`${view ?? "all"}:${q ?? ""}`}
+        items={items}
+        initialView={view === "templates" ? "templates" : view === "agents" ? "agents" : "all"}
+        initialQuery={q?.slice(0, 100) ?? ""}
       />
-
-      <AgentLibrary key={view ?? "all"} items={items} initialView={view === "templates" ? "templates" : view === "agents" ? "agents" : "all"} />
-    </>
+    </Panel>
   );
 }

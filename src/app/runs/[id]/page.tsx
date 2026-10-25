@@ -19,7 +19,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
               <AgentOrb seed={detail.agent.name} size={12} />
               {detail.agent.name}
             </Link>{" "}
-            / Run <span className="font-mono">{detail.run.id.slice(0, 8)}</span>
+            / Run <span className="tabular-nums">{detail.run.id.slice(0, 8)}</span>
           </span>
         }
         title={detail.ticket ? detail.ticket.subject : "Run"}

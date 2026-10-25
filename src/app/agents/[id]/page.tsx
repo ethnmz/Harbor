@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { asc } from "drizzle-orm";
@@ -5,7 +6,7 @@ import { AgentActions } from "@/components/agent-actions";
 import { ConfigCard } from "@/components/agent-builder/config-card";
 import { RunsTable } from "@/components/runs-table";
 import { AgentStatusBadge } from "@/components/status";
-import { PageHeader, Stat } from "@/components/ui/primitives";
+import { Panel, Stat } from "@/components/ui/primitives";
 import { db } from "@/lib/db";
 import { tickets } from "@/lib/db/schema";
 import { configFromTemplate } from "@/lib/engine/config";
@@ -27,12 +28,17 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   const { agent, template } = row;
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Agent library"
+    <div className="space-y-6">
+      <AutoRefresh />
+      <Panel
+        eyebrow={
+          <Link href="/agents" className="hover:text-foreground">
+            Agent library
+          </Link>
+        }
         title={
-          <span className="flex items-center gap-3.5">
-            <AgentOrb seed={agent.name} size={34} shape="tile" live={agent.status === "live"} />
+          <span className="flex flex-wrap items-center gap-3.5">
+            <AgentOrb seed={agent.name} size={36} shape="tile" live={agent.status === "live"} />
             {agent.name} <AgentStatusBadge status={agent.status} />
           </span>
         }
@@ -42,30 +48,31 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
             {agent.deployedAt && <span className="text-muted-foreground/80"> · deployed {timeAgo(agent.deployedAt)}</span>}
           </>
         }
-      />
-      <AutoRefresh />
-      <AgentActions
-        agentId={agent.id}
-        agentName={agent.name}
-        status={agent.status}
-        published={template.published}
-        tickets={allTickets.map((t) => ({ id: t.id, subject: t.subject }))}
-        openInbox={openInbox}
-      />
+      >
+        <AgentActions
+          agentId={agent.id}
+          agentName={agent.name}
+          status={agent.status}
+          published={template.published}
+          tickets={allTickets.map((t) => ({ id: t.id, subject: t.subject }))}
+          openInbox={openInbox}
+        />
+        <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+          <Stat label="Runs" value={s.runs} />
+          <Stat label="Handled" value={`${pct(s.handled, s.runs)}%`} tone="success" hint={`${s.handled} of ${s.runs}`} />
+          <Stat label="Flagged / waiting" value={s.flagged + s.waiting} tone={s.flagged + s.waiting ? "warning" : undefined} />
+          <Stat label="Est. cost" value={formatUsd(s.cost, 2)} hint={s.runs ? `${formatUsd(s.cost / s.runs)} per run` : undefined} />
+          <Stat label="Avg run time" value={s.avgMs ? formatMs(s.avgMs) : "—"} />
+        </div>
+      </Panel>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Runs" value={s.runs} />
-        <Stat label="Handled" value={`${pct(s.handled, s.runs)}%`} tone="success" hint={`${s.handled} of ${s.runs}`} />
-        <Stat label="Flagged / waiting" value={s.flagged + s.waiting} tone={s.flagged + s.waiting ? "warning" : undefined} />
-        <Stat label="Est. cost" value={formatUsd(s.cost, 2)} hint={s.runs ? `${formatUsd(s.cost / s.runs)} per run` : undefined} />
-        <Stat label="Avg run time" value={s.avgMs ? formatMs(s.avgMs) : "—"} />
-      </div>
+      <Panel title="Recent runs">
+        <RunsTable rows={runs} showAgent={false} empty="Run it on a ticket above, or re-test it on the 10 sample tickets." />
+      </Panel>
 
-      <h2 className="mt-8 mb-3 text-[15px] font-semibold tracking-tight">Recent runs</h2>
-      <RunsTable rows={runs} showAgent={false} empty="Run it on a ticket above, or re-test it on the 10 sample tickets." />
-
-      <h2 className="mt-8 mb-3 text-[15px] font-semibold tracking-tight">Configuration</h2>
-      <ConfigCard config={configFromTemplate(template)} catalog={props.catalog} models={props.models} workspace={props.workspace} readOnly />
-    </>
+      <Panel title="Configuration" description="What this agent may do, and the guardrails Harbor enforces on every run.">
+        <ConfigCard config={configFromTemplate(template)} catalog={props.catalog} models={props.models} workspace={props.workspace} readOnly />
+      </Panel>
+    </div>
   );
 }
