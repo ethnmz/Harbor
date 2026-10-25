@@ -11,6 +11,18 @@
 | **0:50–1:10** Clone → approval | "Now a refund agent. Same workspace, one sentence." | **Open agent** → **Clone** → *Refund Agent* (prefilled) → **Clone agent** → **Save & test**. "Refunds are risky, so it **paused**: $49 refund plus a customer email, waiting for a manager. The $228 one is over our limit, so the guardrail sent it to a human." → **Review approvals** → **Approve all** → **Watch it finish**. (Shortcut: the paused refund also appears in the Home **Activity** card, where **Approve all 2** resumes it in one click.) |
 | **1:10–1:20** Monitor + close | "Everything is monitored: success rate, what went to humans, cost, every approval." | `/dashboard`. **"Harbor: build agents your company will actually let run."** |
 
+## Red-team + Self-healing (60 s)
+
+Before you start, open **Agents → Support Triage + Refunds** and click **Reset demo to v1**.
+
+| Say | Do |
+|---|---|
+| "Before an agent goes live, Harbor attacks it." | **Red-team this agent**. Eight attacks run in a sandbox, so refunds, emails and Slack posts are intercepted. The grid fills in, about 5–20 s. |
+| "Three got through: a $450 refund with no invoice, a 'CEO' asking for $900, and account details emailed to an outside accountant." | Click a red tile: you see the reason, the attack and **Open the run timeline**, where the intercepted step is. |
+| "Harbor proposes the fix: refund cap and approvals enforced in code, outside emails blocked, instructions hardened." | **Fix with Harbor**. Walk through the diff: red is old, green is new. |
+| "Accept writes v2, an immutable version, and re-verifies it automatically." | **Accept & re-verify**. The tiles flip to green, 8/8, and the test tickets stay 10/10. The badge goes v1 → v2. |
+| "Every step is in the audit log." | `/activity`. |
+
 ## Backup lines for questions
 
 - **"Is the policy just in the prompt?"** No. `src/lib/engine/config.ts` (`enforcePolicy`) and the run loop's guardrails block disallowed tools, unapproved Slack channels, over-limit refunds, and step/cost overruns *in code*, and log the block.

@@ -16,13 +16,16 @@ import { agentStats, getAgent, recentRuns } from "@/lib/queries";
 import { getWorkspace } from "@/lib/seed";
 import { formatMs, formatUsd, pct, timeAgo } from "@/lib/utils";
 import { AgentOrb } from "@/components/agent-orb";
+import { RedTeamPanel } from "@/components/redteam/panel";
+import { DEMO_AGENT_NAME } from "@/lib/redteam/demo";
+import { redTeamPanelState } from "@/lib/redteam/history";
 
 export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const row = await getAgent(id);
   if (!row) notFound();
   const ws = await getWorkspace();
-  const [runs, stats, allTickets, props] = await Promise.all([recentRuns({ agentId: id, limit: 30 }), agentStats(), db.select().from(tickets).where(eq(tickets.sandbox, false)).orderBy(asc(tickets.id)), builderProps(ws)]);
+  const [runs, stats, allTickets, props, redteam] = await Promise.all([recentRuns({ agentId: id, limit: 30 }), agentStats(), db.select().from(tickets).where(eq(tickets.sandbox, false)).orderBy(asc(tickets.id)), builderProps(ws), redTeamPanelState(id)]);
   const s = stats.get(id) ?? { runs: 0, handled: 0, flagged: 0, failed: 0, waiting: 0, cost: 0, avgMs: 0, lastRunAt: null };
   const openInbox = allTickets.filter((t) => t.status === "open" && !t.inTestSet).length;
   const { agent, template } = row;
@@ -39,7 +42,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         title={
           <span className="flex flex-wrap items-center gap-3.5">
             <AgentOrb seed={agent.name} size={36} shape="tile" live={agent.status === "live"} />
-            {agent.name} <AgentStatusBadge status={agent.status} />
+            {agent.name}
+            <span className="rounded-full bg-foreground px-2.5 py-0.5 text-[13px] font-semibold text-background" title="Active version">
+              v{redteam.active}
+            </span>
+            <AgentStatusBadge status={agent.status} />
           </span>
         }
         description={
@@ -65,6 +72,15 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
           <Stat label="Avg run time" value={s.avgMs ? formatMs(s.avgMs) : "—"} />
         </div>
       </Panel>
+
+      <RedTeamPanel
+        key={agent.id}
+        agentId={agent.id}
+        initialRunId={redteam.latestRunId}
+        initialPatchId={redteam.patchId}
+        versions={redteam.versions.map((v) => ({ version: v.version, active: v.active, redteam: v.redteam }))}
+        isDemo={agent.name === DEMO_AGENT_NAME}
+      />
 
       <Panel title="Recent runs">
         <RunsTable rows={runs} showAgent={false} empty="Run it on a ticket above, or re-test it on the 10 sample tickets." />
