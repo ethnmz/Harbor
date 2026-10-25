@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { ArrowUpRight, BadgeDollarSign, Mail, SlidersHorizontal } from "lucide-react";
 import { AgentOrb } from "@/components/agent-orb";
+import { Mascot } from "@/components/mascots/mascot";
 import { Mrkdwn } from "@/components/slack-preview";
 import { AgentStatusBadge } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Label, Panel } from "@/components/ui/primitives";
 import { modelInfo } from "@/lib/llm/models";
+import { ALL_MASCOTS } from "@/lib/mascots";
 import type { AgentRow, FeedItem, recentRuns, totals } from "@/lib/queries";
 import { integrationStatus } from "@/lib/queries";
 import { cn, formatUsd, pct, timeAgo } from "@/lib/utils";
@@ -18,14 +20,14 @@ type Totals = Awaited<ReturnType<typeof totals>>;
 function Field({ id, value, action }: { id: string; value: React.ReactNode; action?: { href: string; label: string; icon: React.ElementType } }) {
   const Icon = action?.icon;
   return (
-    <div id={id} className="mt-2 flex h-12 items-center gap-3 rounded-xl border border-input bg-muted pr-2 pl-4">
+    <div id={id} className="mt-2 flex h-12 items-center gap-3 rounded-xl border border-white/80 bg-white/55 pr-2 pl-4">
       <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{value}</span>
       {action && Icon && (
         <Link
           href={action.href}
           aria-label={action.label}
           title={action.label}
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white hover:text-foreground"
         >
           <Icon className="size-[19px]" strokeWidth={1.8} />
         </Link>
@@ -41,7 +43,7 @@ const runLabel = (run: RunRow["run"]) =>
 export function AgentCard({ featured, lastRun, defaultModel }: { featured: AgentRow | null; lastRun: RunRow | null; defaultModel: string }) {
   if (!featured)
     return (
-      <Panel title="No agents yet" description="Describe a job and Harbor builds, tests and deploys an agent in about a minute.">
+      <Panel variant="glass" title="No agents yet" description="Describe a job and Harbor builds, tests and deploys an agent in about a minute.">
         <Label htmlFor="agent-model">Default model</Label>
         <Field id="agent-model" value={modelInfo(defaultModel).label} action={{ href: "/onboarding", label: "Workspace settings", icon: SlidersHorizontal }} />
         <Label htmlFor="agent-last" className="mt-5 block">
@@ -53,6 +55,7 @@ export function AgentCard({ featured, lastRun, defaultModel }: { featured: Agent
   const { agent, template, stats } = featured;
   return (
     <Panel
+      variant="glass"
       title={
         <Link href={`/agents/${agent.id}`} className="flex items-center gap-3 hover:underline">
           <AgentOrb seed={agent.name} size={26} live={agent.status === "live"} />
@@ -95,6 +98,7 @@ export function WorkloadCard({ t }: { t: Totals }) {
   ];
   return (
     <Panel
+      variant="glass"
       title="Ticket workload"
       description={`${formatUsd(t.cost, 2)} estimated spend on ${t.tokens.toLocaleString()} tokens.`}
       actions={
@@ -103,7 +107,7 @@ export function WorkloadCard({ t }: { t: Totals }) {
         </Button>
       }
     >
-      <div className="rounded-2xl border border-input/80 px-5 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+      <div className="rounded-2xl border border-white/80 bg-white/45 px-5 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
         <div className="flex items-baseline justify-between gap-3">
           <div className="text-[15px] text-muted-foreground">
             <span className="text-[20px] font-semibold text-foreground tabular-nums">{t.handled}</span> /{" "}
@@ -116,7 +120,7 @@ export function WorkloadCard({ t }: { t: Totals }) {
         <div
           role="img"
           aria-label={segments.map((s) => `${s.label}: ${s.n}`).join(", ")}
-          className="mt-4 flex h-4 gap-[2px] overflow-hidden rounded-[4px] bg-muted"
+          className="mt-4 flex h-4 gap-[2px] overflow-hidden rounded-[4px] bg-black/[0.06]"
         >
           {segments
             .filter((s) => s.n > 0)
@@ -127,7 +131,7 @@ export function WorkloadCard({ t }: { t: Totals }) {
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {segments.map((s) => (
-          <div key={s.key} className="flex items-center gap-4 rounded-2xl bg-muted px-4 py-4">
+          <div key={s.key} className="flex items-center gap-4 rounded-2xl border border-white/70 bg-white/50 px-4 py-4">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-[0_1px_2px_rgba(16,24,40,0.08)]">
               <span className={cn("size-3 rotate-45 rounded-[3px]", s.color)} />
             </span>
@@ -150,7 +154,7 @@ export function GoLiveCard() {
   const allLive = simulated.length === 0;
   const list = simulated.join(", ").replace(/, ([^,]*)$/, " and $1");
   return (
-    <section className="relative flex min-h-[340px] items-center overflow-hidden rounded-[24px] border border-[#eceef1] bg-card p-6 shadow-[0_2px_12px_rgba(16,24,40,0.04)] md:p-8">
+    <section className="glass relative flex min-h-[340px] flex-col justify-center overflow-hidden rounded-[24px] p-6 sm:flex-row sm:items-center sm:justify-start md:p-8">
       <div className="relative z-10 max-w-[270px]">
         <h2 className="display text-[24px]">{allLive ? "Harbor in full throttle!" : "Go live"}</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
@@ -162,11 +166,7 @@ export function GoLiveCard() {
           <Link href={allLive ? "/activity" : "/onboarding"}>{allLive ? "View activity" : "Connect"}</Link>
         </Button>
       </div>
-      <div aria-hidden className="pointer-events-none absolute -right-6 -bottom-10 h-[300px] w-[300px] md:right-2">
-        <AgentOrb seed="Outage Watcher" size={190} className="absolute top-10 right-6 drop-shadow-[0_24px_30px_rgba(0,0,0,0.18)]" />
-        <AgentOrb seed="Ticket Triage" size={92} className="absolute top-0 left-6 drop-shadow-[0_16px_20px_rgba(0,0,0,0.2)]" />
-        <AgentOrb seed="Refund Handler" size={64} className="absolute bottom-16 left-0 drop-shadow-[0_12px_16px_rgba(0,0,0,0.2)]" />
-      </div>
+      <Mascot kinds={ALL_MASCOTS} width={340} height={250} className="mx-auto mt-4 sm:absolute sm:-right-2 sm:bottom-3 sm:mt-0" label="Orbit, Facet and Murmur, Harbor's guides" />
     </section>
   );
 }

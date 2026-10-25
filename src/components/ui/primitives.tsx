@@ -29,6 +29,7 @@ export function Panel({
   description,
   actions,
   eyebrow,
+  variant = "solid",
   className,
   children,
 }: {
@@ -36,12 +37,20 @@ export function Panel({
   description?: React.ReactNode;
   actions?: React.ReactNode;
   eyebrow?: React.ReactNode;
+  /** "glass" for the key surfaces (home hero cards, onboarding); data-heavy cards stay solid. */
+  variant?: "solid" | "glass";
   className?: string;
   children?: React.ReactNode;
 }) {
   const header = title || description || actions || eyebrow;
   return (
-    <section className={cn("rounded-[24px] border border-[#eceef1] bg-card p-6 shadow-[0_2px_12px_rgba(16,24,40,0.04)] md:p-8", className)}>
+    <section
+      className={cn(
+        "rounded-[24px] p-6 md:p-8",
+        variant === "glass" ? "glass" : "border border-[#eceef1] bg-card shadow-[0_2px_12px_rgba(16,24,40,0.04)]",
+        className,
+      )}
+    >
       {header && (
         <div className={cn("flex flex-wrap items-start justify-between gap-4", children ? "mb-6" : undefined)}>
           <div className="min-w-0">

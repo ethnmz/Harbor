@@ -15,7 +15,7 @@ function Radio({ checked, onSelect, children }: { checked: boolean; onSelect: ()
       <span
         className={cn(
           "size-[18px] rounded-full border-2 transition-all peer-focus-visible:ring-4 peer-focus-visible:ring-foreground/10",
-          checked ? "border-[5px] border-foreground" : "border-input",
+          checked ? "border-[5px] border-foreground" : "border-foreground/20 bg-white/60",
         )}
       />
       {children}
@@ -31,7 +31,7 @@ export function BuildAgentCard() {
   const [mode, setMode] = useState<"scratch" | "template">("scratch");
   const [hint, setHint] = useState(false);
   return (
-    <Panel title="Build an agent" description="Describe the job in plain English.">
+    <Panel variant="glass" title="Build an agent" description="Describe the job in plain English.">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -53,7 +53,7 @@ export function BuildAgentCard() {
             setHint(false);
           }}
           placeholder="Triage new tickets and alert #support-urgent"
-          className="mt-2"
+          className="mt-2 border-white/80 bg-white/55"
           aria-describedby={hint ? "job-hint" : undefined}
         />
         {hint && (
