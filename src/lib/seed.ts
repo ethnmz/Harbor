@@ -2,7 +2,10 @@ import { cache } from "react";
 import { eq, sql as dsql } from "drizzle-orm";
 import { db, sql } from "./db";
 import {
+  agentVersions,
   agents,
+  healPatches,
+  redteamRuns,
   approvals,
   auditLog,
   outboundEmails,
@@ -25,6 +28,7 @@ import {
   TOOL_CONNECTIONS,
 } from "./seed-data";
 import { DEFAULT_MODEL } from "./llm/models";
+import { ensureDemoAgent } from "./redteam/demo";
 
 /** Cached per request, so the layouts and the page share one query. */
 export const getWorkspace = cache(async (): Promise<Workspace> => {
@@ -41,6 +45,7 @@ async function seedWorkspace(): Promise<Workspace> {
   await db.insert(tools).values(TOOL_CONNECTIONS.map((t) => ({ workspaceId: ws.id, key: t.key, name: t.name, config: { ...t.config } })));
   await seedBuiltinTemplates(ws);
   await seedTickets();
+  await ensureDemoAgent(ws);
   return ws;
 }
 
@@ -78,18 +83,22 @@ export async function seedTickets() {
 export async function resetDemo() {
   const ws = await getWorkspace();
   await db.transaction(async (tx) => {
+    await tx.delete(healPatches);
+    await tx.delete(redteamRuns);
     await tx.delete(slackMessages);
     await tx.delete(refunds);
     await tx.delete(outboundEmails);
     await tx.delete(approvals);
     await tx.delete(runSteps);
     await tx.delete(runs);
+    await tx.delete(agentVersions);
     await tx.delete(agents);
     await tx.delete(templates).where(eq(templates.workspaceId, ws.id));
     await tx.delete(auditLog);
   });
   await seedBuiltinTemplates(ws);
   await seedTickets();
+  await ensureDemoAgent(ws);
   return ws;
 }
 

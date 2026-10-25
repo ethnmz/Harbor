@@ -6,6 +6,7 @@
 import { and, asc, eq, inArray, notExists, sql as dsql } from "drizzle-orm";
 import { db } from "../db";
 import {
+  agentVersions,
   agents,
   approvals,
   runSteps,
@@ -28,6 +29,13 @@ import { appUrl, postToSlack } from "../tools/slack";
 import { slackMessages } from "../db/schema";
 import { configFromTemplate, type AgentConfig } from "./config";
 import { buildSystemPrompt, ticketMessage } from "./prompt";
+import { activeVersionNumber } from "./versions";
+
+/** Triggers that run sandboxed: writes are intercepted and recorded, never executed. */
+export const SANDBOX_TRIGGERS = new Set(["redteam", "verify"]);
+/** Tools with side effects. Read-only tools (lookups, searches) run normally in the sandbox. */
+const WRITE_TOOLS = new Set(["issue_refund", "email_customer", "post_slack_message", "update_ticket"]);
+const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 
 type ToolCall = Extract<LlmBlock, { type: "tool_call" }>;
 type ToolResultBlock = Extract<LlmBlock, { type: "tool_result" }>;
@@ -53,6 +61,8 @@ type Ctx = {
   system: string;
   toolSpecs: LlmToolSpec[];
   disabledConnections: Set<string>;
+  /** Red-team / verification run: intercept writes instead of executing them. */
+  sandbox: boolean;
   seq: number;
   totals: { inputTokens: number; outputTokens: number; cost: number; toolCalls: number };
 };
@@ -61,13 +71,28 @@ type Ctx = {
 // Creating runs
 // ---------------------------------------------------------------------------
 
-export async function createRun(agentId: string, ticketId: string, trigger: "test" | "manual" | "live", batchId?: string) {
+export async function createRun(
+  agentId: string,
+  ticketId: string,
+  trigger: "test" | "manual" | "live" | "redteam" | "verify",
+  batchId?: string,
+  opts: { agentVersion?: number } = {},
+) {
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!agent) throw new Error("Agent not found");
-  const [template] = await db.select().from(templates).where(eq(templates.id, agent.templateId));
+  // A specific version can be run (re-verification); otherwise the active one.
+  let templateId = agent.templateId;
+  let agentVersion = await activeVersionNumber(agentId, agent.templateId);
+  if (opts.agentVersion != null) {
+    const [v] = await db.select().from(agentVersions).where(and(eq(agentVersions.agentId, agentId), eq(agentVersions.version, opts.agentVersion)));
+    if (!v) throw new Error(`Version ${opts.agentVersion} not found`);
+    templateId = v.templateId;
+    agentVersion = v.version;
+  }
+  const [template] = await db.select().from(templates).where(eq(templates.id, templateId));
   const [run] = await db
     .insert(runs)
-    .values({ agentId, ticketId, trigger, batchId: batchId ?? null, model: template.model, provider: getProvider().id })
+    .values({ agentId, ticketId, trigger, batchId: batchId ?? null, model: template.model, provider: getProvider().id, agentVersion })
     .returning();
   return run;
 }
@@ -139,7 +164,12 @@ async function getRunRow(runId: string) {
 
 async function loadContext(run: Run): Promise<Ctx> {
   const [agent] = await db.select().from(agents).where(eq(agents.id, run.agentId));
-  const [template] = await db.select().from(templates).where(eq(templates.id, agent.templateId));
+  // Runs reference the version they were created with, so a later version never changes an in-flight run.
+  const [version] =
+    run.agentVersion != null
+      ? await db.select().from(agentVersions).where(and(eq(agentVersions.agentId, agent.id), eq(agentVersions.version, run.agentVersion)))
+      : [];
+  const [template] = await db.select().from(templates).where(eq(templates.id, version?.templateId ?? agent.templateId));
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, agent.workspaceId));
   const [ticket] = run.ticketId ? await db.select().from(tickets).where(eq(tickets.id, run.ticketId)) : [null];
   const [{ maxSeq }] = await db
@@ -166,6 +196,7 @@ async function loadContext(run: Run): Promise<Ctx> {
     system: buildSystemPrompt(cfg, ws),
     toolSpecs,
     disabledConnections,
+    sandbox: SANDBOX_TRIGGERS.has(run.trigger),
     seq: maxSeq,
     totals: { inputTokens: run.inputTokens, outputTokens: run.outputTokens, cost: run.costEstimate, toolCalls: run.toolCalls },
   };
@@ -304,6 +335,36 @@ async function processToolCalls(ctx: Ctx, calls: ToolCall[]) {
       await block(c, "refund_limit", `A refund of $${Number(c.input.amount_usd).toFixed(2)} exceeds the $${g.maxRefundUsd} limit. Escalate to a human instead.`);
       continue;
     }
+    if (c.name === "issue_refund" && g.requireInvoiceForRefund) {
+      const invoice = String(c.input.invoice_id ?? "").trim();
+      if (!invoice || !ctx.ticket?.customer.invoices.some((i) => i.id === invoice)) {
+        await block(c, "refund_invoice", `Refunds must name an invoice on this customer's account (got "${invoice || "none"}"). Verify the charge with lookup_customer first.`);
+        continue;
+      }
+    }
+    if (c.name === "email_customer" && ctx.ticket && (g.emailRecipients ?? "ticket_customer") !== "any") {
+      const to = String(c.input.to ?? "").trim().toLowerCase();
+      if (to && to !== ctx.ticket.customerEmail.toLowerCase()) {
+        await block(c, "email_recipient", `Emails can only go to the customer on this ticket (${ctx.ticket.customerEmail}), not ${to}.`);
+        continue;
+      }
+    }
+    if (g.blockForeignEmails && ctx.ticket && (c.name === "email_customer" || c.name === "post_slack_message")) {
+      const own = new Set([ctx.ticket.customerEmail.toLowerCase()]);
+      const companyDomain = ctx.ws.ownerEmail.split("@")[1]?.toLowerCase();
+      const text = [c.input.subject, c.input.body, c.input.text].filter(Boolean).join(" ");
+      const foreign = [...new Set(text.match(EMAIL_RE) ?? [])].map((e) => e.toLowerCase()).filter((e) => !own.has(e) && !e.endsWith(`@${companyDomain}`));
+      if (foreign.length) {
+        await block(c, "data_leak", `Outbound text contains email addresses that don't belong to this ticket's customer (${foreign.join(", ")}).`);
+        continue;
+      }
+    }
+    if (ctx.sandbox && ctx.cfg.riskyTools.includes(c.name)) {
+      // Sandbox: the approval gate held. Record it, never create a real approval or execute.
+      await addStep(ctx, { type: "approval", toolName: c.name, status: "held", input: c.input, output: { sandbox: true, message: "Held for manager approval; not executed." } });
+      results[c.id] = result(c, "This action needs a manager's approval. It was sent for review and has NOT been executed. Continue without it and finish the run.");
+      continue;
+    }
     if (ctx.cfg.riskyTools.includes(c.name)) {
       const step = await addStep(ctx, { type: "approval", toolName: c.name, status: "pending", input: c.input });
       const [ap] = await db
@@ -321,6 +382,10 @@ async function processToolCalls(ctx: Ctx, calls: ToolCall[]) {
         .returning();
       await audit(`agent:${ctx.agent.name}`, "approval.requested", ap.id, { tool: c.name, args: c.input, run: ctx.run.id }, ctx.ws.id);
       pending.push(c);
+      continue;
+    }
+    if (ctx.sandbox && WRITE_TOOLS.has(c.name)) {
+      results[c.id] = await interceptTool(ctx, c);
       continue;
     }
     results[c.id] = await runTool(ctx, c);
@@ -365,6 +430,29 @@ async function runTool(ctx: Ctx, c: ToolCall, approvalId?: string, approvedBy?: 
   await saveTotals(ctx);
   await audit(`agent:${ctx.agent.name}`, "tool.called", ctx.run.id, { tool: c.name, ok, ...(approvedBy ? { approved_by: approvedBy } : {}) }, ctx.ws.id);
   return { type: "tool_result", toolCallId: c.id, content: JSON.stringify(output), isError: !ok };
+}
+
+/** Sandbox: record what the tool would have done and answer the model as if it succeeded. */
+async function interceptTool(ctx: Ctx, c: ToolCall): Promise<ToolResultBlock> {
+  const to = String(c.input.to ?? "").trim() || ctx.ticket?.customerEmail;
+  const fake: Record<string, unknown> =
+    c.name === "issue_refund"
+      ? { refund_id: "sandbox", amount_usd: Number(c.input.amount_usd), status: "issued" }
+      : c.name === "email_customer"
+        ? { email_id: "sandbox", to, status: "sent" }
+        : c.name === "post_slack_message"
+          ? { delivered: true, channel: c.input.channel }
+          : { updated: ctx.ticket?.id };
+  ctx.totals.toolCalls += 1;
+  await addStep(ctx, {
+    type: "tool",
+    toolName: c.name,
+    status: "intercepted",
+    input: c.input,
+    output: { sandbox: true, would_execute: true, ...(c.name === "email_customer" ? { to } : {}) },
+  });
+  await saveTotals(ctx);
+  return { type: "tool_result", toolCallId: c.id, content: JSON.stringify(fake) };
 }
 
 async function pause(

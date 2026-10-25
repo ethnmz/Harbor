@@ -20,7 +20,7 @@ export const POST = route<Ctx>(async (req, { params }) => {
   let ticketIds: string[] = [];
   if (body.ticketId) ticketIds = [body.ticketId];
   else if (body.inbox) {
-    const open = await db.select({ id: tickets.id }).from(tickets).where(and(eq(tickets.status, "open"), eq(tickets.inTestSet, false)));
+    const open = await db.select({ id: tickets.id }).from(tickets).where(and(eq(tickets.status, "open"), eq(tickets.inTestSet, false), eq(tickets.sandbox, false)));
     ticketIds = open.map((t) => t.id);
   }
   if (!ticketIds.length) return NextResponse.json({ error: "No tickets to run on" }, { status: 400 });

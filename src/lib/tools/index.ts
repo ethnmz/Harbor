@@ -187,9 +187,14 @@ export const TOOLS: ToolDef[] = [
     name: "email_customer",
     connection: "email",
     label: "Email customer",
-    description: "Send an email to the customer on the current ticket. Requires manager approval; the run pauses until a manager decides.",
+    description: "Send an email about the current ticket, to the ticket's customer unless `to` names another address. May require manager approval.",
     risky: true,
-    inputSchema: obj({ ticket_id: str("The ticket id"), subject: str("Email subject"), body: str("Plain-text email body") }),
+    inputSchema: obj({
+      ticket_id: str("The ticket id"),
+      to: str("Recipient address. Empty string replies to the customer on the ticket."),
+      subject: str("Email subject"),
+      body: str("Plain-text email body"),
+    }),
     async execute(input, ctx) {
       const denied = ticketScope(input, ctx);
       if (denied) return denied;
@@ -199,12 +204,12 @@ export const TOOLS: ToolDef[] = [
           ticketId: ctx.ticket!.id,
           runId: ctx.runId,
           approvalId: ctx.approvalId ?? null,
-          toAddress: ctx.ticket!.customerEmail,
+          toAddress: String(input.to ?? "").trim() || ctx.ticket!.customerEmail,
           subject: String(input.subject),
           body: String(input.body),
         })
         .returning();
-      return { ok: true, output: { email_id: row.id, to: ctx.ticket!.customerEmail, status: "sent (sandbox)" } };
+      return { ok: true, output: { email_id: row.id, to: row.toAddress, status: "sent (sandbox)" } };
     },
   },
 ];
