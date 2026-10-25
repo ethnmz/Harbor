@@ -17,6 +17,7 @@ type Verification = {
   flipped: unknown[];
   regressions: { kind: string; label: string }[];
   stillFailing: unknown[];
+  iterating?: boolean;
   error?: string;
 };
 type Heal = {
@@ -39,9 +40,25 @@ const LABEL: Record<string, string> = {
 
 async function call<T>(url: string, method: "GET" | "POST" = "GET", body?: unknown): Promise<T> {
   const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: method === "POST" ? JSON.stringify(body ?? {}) : undefined, cache: "no-store" });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({ error: `Server error (${res.status}). Try again.` }));
   if (!res.ok) throw new Error(data.error ?? "Request failed");
   return data as T;
+}
+
+/** Polls survive a few failed requests (a cold start, a blip on venue wifi) before giving up. */
+async function poll<T>(get: () => Promise<T>, done: (v: T) => boolean, onValue: (v: T) => void) {
+  let misses = 0;
+  for (;;) {
+    try {
+      const v = await get();
+      misses = 0;
+      onValue(v);
+      if (done(v)) return v;
+    } catch (e) {
+      if (++misses >= 8) throw e;
+    }
+    await sleep(misses ? 2000 : 1000);
+  }
 }
 
 const PLACEHOLDERS = Array.from({ length: 8 }, (_, i) => ({ id: `p${i}`, seq: i + 1, result: "pending" }) as Case);
@@ -79,27 +96,28 @@ export function RedTeamPanel({
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
-  const pollRun = useCallback(async (runId: string) => {
-    for (;;) {
-      const d = await call<RedTeam>(`/api/redteam/${runId}`);
-      setRt(d);
-      if (d.run.status === "completed" || d.run.status === "failed") return d;
-      await sleep(1000);
-    }
-  }, []);
+  const pollRun = useCallback(
+    (runId: string) =>
+      poll(
+        () => call<RedTeam>(`/api/redteam/${runId}`),
+        (d) => d.run.status === "completed" || d.run.status === "failed",
+        setRt,
+      ),
+    [],
+  );
 
   const pollHeal = useCallback(
     async (patchId: string) => {
-      for (;;) {
-        const c = await latestHeal(agentId, patchId);
-        setChain(c);
-        const last = c[c.length - 1];
-        if (last.patch.status !== "verifying") {
-          router.refresh();
-          return;
-        }
-        await sleep(1000);
-      }
+      await poll(
+        () => latestHeal(agentId, patchId),
+        (c) => {
+          const last = c[c.length - 1];
+          const auto = last.patch.iteration > 1 && last.patch.status === "proposed";
+          return last.patch.status !== "verifying" && !auto && !last.verification?.iterating;
+        },
+        setChain,
+      );
+      router.refresh();
     },
     [agentId, router],
   );
@@ -165,11 +183,12 @@ export function RedTeamPanel({
   const first = chain[0];
   const last = chain[chain.length - 1];
   const proposed = first?.patch.status === "proposed";
-  const verifying = last?.patch.status === "verifying";
+  const verifying = last?.patch.status === "verifying" || !!last?.verification?.iterating || (last?.patch.iteration > 1 && last?.patch.status === "proposed");
   const showVerify = first && !proposed && first.patch.status !== "rejected";
   const gridRun = showVerify && last.verifyRun ? last.verifyRun : rt;
   const running = rt && (rt.run.status === "generating" || rt.run.status === "running");
-  const fails = rt?.cases.filter((c) => c.result === "fail" || c.result === "error").length ?? 0;
+  const fails = rt?.cases.filter((c) => c.result === "fail").length ?? 0;
+  const errored = rt?.cases.filter((c) => c.result === "error").length ?? 0;
   const v = last?.verification;
   const openCase = gridRun?.cases.find((c) => c.id === open);
 
@@ -237,9 +256,14 @@ export function RedTeamPanel({
           </Button>
         </div>
       )}
-      {rt?.run.status === "completed" && !first && fails === 0 && (
+      {rt?.run.status === "completed" && !first && fails === 0 && errored === 0 && (
         <p className="mt-6 flex items-center gap-2 rounded-2xl bg-success-soft px-5 py-4 text-[15px] font-medium text-success">
           <ShieldCheck className="size-5" /> Every attack was stopped.
+        </p>
+      )}
+      {rt && !first && errored > 0 && (rt.run.status === "completed" || rt.run.status === "failed") && (
+        <p className="mt-3 flex items-center gap-2 text-[14px] text-warning">
+          <TriangleAlert className="size-4" /> {errored} attack{errored === 1 ? "" : "s"} couldn&apos;t be graded (timed out or interrupted). Click Red-team again to retry.
         </p>
       )}
 
@@ -282,7 +306,8 @@ export function RedTeamPanel({
           )}
           {verifying && (
             <p className="flex items-center gap-2 text-[14px] text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Re-running the attacks and the 10 test tickets on v{last.patch.toVersion}…
+              <Loader2 className="size-4 animate-spin" />{" "}
+              {last.verification?.iterating ? "Some attacks still got through. Harbor is writing another patch…" : `Re-running the attacks and the 10 test tickets on v${last.patch.toVersion}…`}
             </p>
           )}
         </div>
