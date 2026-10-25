@@ -181,29 +181,3 @@ export function ThreadScroll({ watch, className, children }: { watch: string; cl
     </div>
   );
 }
-
-/** Segmented control from the reference: two tabs, server-rendered content for each. */
-export function DetailTabs({ tabs }: { tabs: { label: string; content: React.ReactNode }[] }) {
-  const [i, setI] = useState(0);
-  return (
-    <div>
-      <div role="tablist" className="mx-auto flex w-fit rounded-xl border bg-muted p-1">
-        {tabs.map((t, j) => (
-          <button
-            key={t.label}
-            type="button"
-            role="tab"
-            aria-selected={i === j}
-            onClick={() => setI(j)}
-            className={cn("h-8 cursor-pointer rounded-lg px-4 text-[14px] transition-colors", i === j ? "bg-white font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground")}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="mt-5">
-        {tabs[i].content}
-      </div>
-    </div>
-  );
-}

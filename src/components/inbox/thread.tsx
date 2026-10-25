@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, BadgeDollarSign, CheckCircle2, Globe2, Hash, Lock, Mail, ReceiptText } from "lucide-react";
 import { AgentOrb } from "@/components/agent-orb";
 import { ApproveAllButton } from "@/components/home/client-bits";
-import { categoryLabel, UrgencyBadge } from "@/components/status";
+import { categoryLabel } from "@/components/status";
 import type { TicketState } from "@/lib/inbox";
 import type { TicketThread } from "@/lib/queries";
 import { formatUsd, timeAgo } from "@/lib/utils";
@@ -30,7 +30,7 @@ function SenderRow({ name, at, avatar, right }: { name: string; at: Date; avatar
 function SystemLine({ icon: Icon, children, tone }: { icon: React.ElementType; children: React.ReactNode; tone?: string }) {
   return (
     <div className="flex justify-center">
-      <span className="inline-flex max-w-[90%] items-start gap-2 rounded-full bg-muted px-3.5 py-1.5 text-[13px] text-muted-foreground">
+      <span className="inline-flex max-w-[90%] items-start gap-2 text-[13px] text-muted-foreground">
         <Icon className={`mt-0.5 size-3.5 shrink-0 ${tone ?? ""}`} />
         <span>{children}</span>
       </span>
@@ -54,7 +54,6 @@ export function Thread({
   const agentOfRun = new Map(thread.runs.map((r) => [r.run.id, r.agentName]));
   const assignee = thread.runs.at(-1)?.agentName ?? null;
   const channel = channelOf(ticket.channel);
-  const ChannelIcon = channel.icon;
 
   const events: { at: number; key: string; node: React.ReactNode }[] = [];
   const add = (at: Date | null, key: string, node: React.ReactNode) => events.push({ at: (at ?? new Date()).getTime(), key, node });
@@ -69,9 +68,8 @@ export function Thread({
         <div className="rounded-2xl border border-[#f1e3bd] bg-[#fffaeb] px-4 py-3.5">
           <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold tracking-[0.04em] text-[#8a6100] uppercase">
             <Lock className="size-3.5" /> Internal note · {agent}
-            <span className="ml-auto flex gap-1.5 normal-case tracking-normal">
-              <UrgencyBadge urgency={input.urgency ?? null} />
-              {input.category && <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[12px] font-medium text-foreground/80">{categoryLabel(input.category)}</span>}
+            <span className="ml-auto font-medium normal-case tracking-normal text-[#8a6100]/80">
+              {[input.urgency && input.urgency.charAt(0).toUpperCase() + input.urgency.slice(1), input.category && categoryLabel(input.category)].filter(Boolean).join(" · ")}
             </span>
           </div>
           <p className="mt-2 text-[14px] leading-relaxed text-foreground/90">{input.note}</p>
@@ -188,14 +186,11 @@ export function Thread({
             <span className="shrink-0 text-[13px] text-muted-foreground">{timeAgo(ticket.receivedAt)}</span>
           </div>
           <div className="truncate text-[13px] text-muted-foreground">
-            {ticket.company} · <span className="tabular-nums">{ticket.id}</span>
+            {ticket.company} · {channel.label} · <span className="tabular-nums">{ticket.id}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AssignAgent ticketId={ticket.id} current={assignee} agents={agents} />
-          <span className="inline-flex h-9 items-center gap-1.5 rounded-xl border bg-card px-3 text-[13px] font-semibold shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-            <ChannelIcon className="size-4" /> {channel.label}
-          </span>
           <ResolveToggle ticketId={ticket.id} resolved={ticket.status === "resolved"} />
         </div>
       </header>
