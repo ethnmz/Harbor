@@ -127,9 +127,7 @@ function Tile({ item, busy }: { item: LibraryItem; busy: boolean }) {
   return (
     <div className="flex h-full min-h-52 flex-col rounded-2xl bg-muted p-5 transition-colors group-hover:bg-tile-hover">
       <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-[0_1px_2px_rgba(16,24,40,0.08)]">
-          <AgentOrb seed={item.name} size={20} live={item.status === "live"} />
-        </span>
+        <AgentOrb seed={item.name} size={40} shape="tile" live={item.status === "live"} />
         <h3 className="flex-1 text-[16px] leading-snug font-semibold">{item.name}</h3>
         {item.kind === "agent" && (
           <span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-semibold", item.status === "live" ? "bg-success-soft text-success" : "bg-card text-muted-foreground")}>

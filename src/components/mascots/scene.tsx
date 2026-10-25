@@ -10,6 +10,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, Lightformer, MeshTransmissionMaterial, OrbitControls } from "@react-three/drei";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MASCOTS, type MascotKind } from "@/lib/mascots";
 
 const INK = "#151515";
@@ -213,7 +214,144 @@ function MurmurAgent({ color, bg }: AgentProps) {
   );
 }
 
-const AGENTS = { orbit: OrbitAgent, facet: FacetAgent, murmur: MurmurAgent };
+/** Nimbus: a glass cloud that drips glowing raindrops. */
+function NimbusAgent({ color, bg }: AgentProps) {
+  const drops = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const puffs: [number, number, number][] = [
+      [-0.62, -0.12, 0.5],
+      [0, 0.22, 0.7],
+      [0.62, -0.05, 0.52],
+      [-0.2, -0.3, 0.5],
+      [0.3, -0.32, 0.48],
+    ];
+    const g = mergeGeometries(puffs.map(([x, y, r]) => new THREE.SphereGeometry(r, 48, 48).translate(x, y, 0)))!;
+    g.scale(1, 1, 0.7);
+    return g;
+  }, []);
+  useFrame(({ clock }) => {
+    drops.current?.children.forEach((c, i) => {
+      const p = (clock.elapsedTime * 0.8 + i * 0.33) % 1;
+      c.position.y = -0.35 - p * 0.95;
+      c.scale.setScalar(Math.sin(p * Math.PI));
+    });
+  });
+  return (
+    <group position={[0, 0.2, 0]}>
+      <mesh geometry={geometry}>
+        <Glass bg={bg} />
+      </mesh>
+      <group ref={drops}>
+        {[-0.4, 0.05, 0.45].map((x, i) => (
+          <mesh key={i} position={[x, -0.4, 0]}>
+            <capsuleGeometry args={[0.05, 0.1, 8, 16]} />
+            <Glow color={color} />
+          </mesh>
+        ))}
+      </group>
+      <Face z={0.48} y={0.12} color={color} offset={0.7} />
+    </group>
+  );
+}
+
+/** Lumen: a glass lightbulb with a spark of an idea inside. */
+function LumenAgent({ color, bg }: AgentProps) {
+  const spark = useRef<THREE.Mesh>(null);
+  const geometry = useMemo(() => {
+    const pts = [
+      [0, 1.05],
+      [0.36, 1.0],
+      [0.6, 0.85],
+      [0.73, 0.55],
+      [0.69, 0.18],
+      [0.5, -0.16],
+      [0.33, -0.42],
+      [0.3, -0.56],
+      [0, -0.56],
+    ].map(([x, y]) => new THREE.Vector2(x, y));
+    return new THREE.LatheGeometry(pts.reverse(), 64);
+  }, []);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (spark.current) {
+      spark.current.rotation.set(t * 1.2, t * 0.8, 0);
+      spark.current.scale.setScalar(1 + Math.sin(t * 3) * 0.18);
+    }
+  });
+  return (
+    <group position={[0, 0.02, 0]}>
+      <mesh geometry={geometry}>
+        <Glass bg={bg} />
+      </mesh>
+      <mesh ref={spark} position={[0, 0.5, -0.1]}>
+        <icosahedronGeometry args={[0.17, 0]} />
+        <Glow color={color} intensity={2.8} />
+      </mesh>
+      <mesh position={[0, -0.72, 0]}>
+        <cylinderGeometry args={[0.29, 0.25, 0.34, 32]} />
+        <Ink />
+      </mesh>
+      {[-0.64, -0.76].map((y) => (
+        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.29, 0.03, 12, 48]} />
+          <Ink />
+        </mesh>
+      ))}
+      <mesh position={[0, -0.92, 0]}>
+        <sphereGeometry args={[0.11, 24, 24]} />
+        <Ink />
+      </mesh>
+      <Face z={0.7} y={0.28} color={color} offset={3.1} />
+    </group>
+  );
+}
+
+/** Sentry: a glass shield with a spinning gyroscope core. */
+function SentryAgent({ color, bg }: AgentProps) {
+  const gyro = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(-0.85, 0.8);
+    s.quadraticCurveTo(0, 1.08, 0.85, 0.8);
+    s.lineTo(0.85, 0.1);
+    s.quadraticCurveTo(0.8, -0.75, 0, -1.15);
+    s.quadraticCurveTo(-0.8, -0.75, -0.85, 0.1);
+    s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.4, bevelEnabled: true, bevelSize: 0.12, bevelThickness: 0.14, bevelSegments: 8, curveSegments: 32 });
+    g.translate(0, 0, -0.2);
+    return g;
+  }, []);
+  useFrame((_, d) => {
+    const g = gyro.current;
+    if (!g) return;
+    g.children[0].rotation.y += d * 1.6;
+    g.children[1].rotation.x += d * 1.2;
+  });
+  return (
+    <group>
+      <mesh geometry={geometry}>
+        <Glass bg={bg} />
+      </mesh>
+      <group ref={gyro} position={[0, -0.32, 0]}>
+        <mesh>
+          <torusGeometry args={[0.28, 0.025, 12, 64]} />
+          <Glow color={color} />
+        </mesh>
+        <mesh rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.2, 0.025, 12, 64]} />
+          <Glow color={color} />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[0.07, 24, 24]} />
+          <Glow color={color} intensity={3} />
+        </mesh>
+      </group>
+      <Face z={0.36} y={0.32} color={color} offset={1.9} />
+    </group>
+  );
+}
+
+const AGENTS = { orbit: OrbitAgent, facet: FacetAgent, murmur: MurmurAgent, nimbus: NimbusAgent, lumen: LumenAgent, sentry: SentryAgent };
 
 function Reactive({ interactive, children }: { interactive: boolean; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
@@ -306,10 +444,12 @@ export type MascotSceneProps = {
   still?: boolean;
   /** Hop once on mount (e.g. "your agent is live"). */
   celebrate?: boolean;
+  /** Soft floor shadow under the mascots (off for icon renders). */
+  shadow?: boolean;
   onReady?: () => void;
 };
 
-export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, paused = false, still = false, celebrate = false, onReady }: MascotSceneProps) {
+export default function MascotScene({ kinds, cue = 0, interactive = false, backdrop = true, paused = false, still = false, celebrate = false, shadow = true, onReady }: MascotSceneProps) {
   const n = kinds.length;
   const tints = useMemo(() => kinds.map((k) => tintOf(MASCOTS[k].color)), [kinds]);
   const lead = MASCOTS[kinds[0]].color;
@@ -347,7 +487,7 @@ export default function MascotScene({ kinds, cue = 0, interactive = false, backd
           </group>
         );
       })}
-      <ContactShadows position={[0, -1.6, 0]} opacity={0.3} scale={5 * n} blur={2.4} far={3} color={lead} />
+      {shadow && <ContactShadows position={[0, -1.6, 0]} opacity={0.3} scale={5 * n} blur={2.4} far={3} color={lead} />}
       {interactive && <OrbitControls enableZoom={false} enablePan={false} minPolarAngle={Math.PI / 3} maxPolarAngle={(2 * Math.PI) / 3} />}
     </Canvas>
   );

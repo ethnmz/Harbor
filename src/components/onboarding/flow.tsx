@@ -155,7 +155,7 @@ export function OnboardingFlow(props: Props) {
     welcome: {
       line: (
         <>
-          Hi {first}! We&apos;re <b>Orbit</b>, <b>Facet</b> and <b>Murmur</b>. Let&apos;s set up {company}&apos;s workspace together. It takes about two minutes.
+          Hi {first}! We&apos;ll be your guides. Let&apos;s set up {company}&apos;s workspace together. It takes about two minutes.
         </>
       ),
       title: "Welcome to Harbor",
@@ -293,7 +293,7 @@ export function OnboardingFlow(props: Props) {
         {/* Same tree on every step so the mascot canvas stays mounted and just hops to the next guide. */}
         <section className={cn("mt-8 flex gap-4", multi ? "flex-col items-center" : "items-center sm:gap-6")}>
           <Mascot kinds={GUIDE[step]} width={multi ? 350 : 168} height={multi ? 200 : 168} cue={cue} interactive />
-          <SpeechBubble key={step} speaker={multi ? undefined : GUIDE[step][0]} tail={multi ? "top" : "left"} className={cn("animate-rise", multi ? "max-w-[520px] text-center" : "flex-1")}>
+          <SpeechBubble key={step} tail={multi ? "top" : "left"} className={cn("animate-rise", multi ? "max-w-[520px] text-center" : "flex-1")}>
             {s.line}
           </SpeechBubble>
         </section>

@@ -1,10 +1,15 @@
-/** Harbor's three glass guides (from the "AI Agent Mascot Models" Figma Make file). */
-export type MascotKind = "orbit" | "facet" | "murmur";
+/** Harbor's six glass mascots (from the "AI Agent Mascot Models" Figma Make file). They are icons, not characters with names. */
+export type MascotKind = "orbit" | "facet" | "murmur" | "nimbus" | "lumen" | "sentry";
 
-export const MASCOTS: Record<MascotKind, { name: string; color: string; role: string }> = {
-  orbit: { name: "Orbit", color: "#8b5cf6", role: "Keeps your setup on track" },
-  facet: { name: "Facet", color: "#14b8a6", role: "Connects your tools" },
-  murmur: { name: "Murmur", color: "#f97316", role: "Writes and explains" },
+export const MASCOTS: Record<MascotKind, { color: string }> = {
+  orbit: { color: "#8b5cf6" },
+  facet: { color: "#14b8a6" },
+  murmur: { color: "#f97316" },
+  nimbus: { color: "#0ea5e9" },
+  lumen: { color: "#eab308" },
+  sentry: { color: "#f43f5e" },
 };
 
+export const MASCOT_KINDS = Object.keys(MASCOTS) as MascotKind[];
+/** The three guides shown together (onboarding welcome and summary, the Go live card). */
 export const ALL_MASCOTS: MascotKind[] = ["orbit", "facet", "murmur"];

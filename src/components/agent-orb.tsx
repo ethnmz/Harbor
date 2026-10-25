@@ -1,18 +1,20 @@
+import Image from "next/image";
+import { MASCOT_KINDS, type MascotKind } from "@/lib/mascots";
 import { cn } from "@/lib/utils";
 
 /**
- * Every agent gets a gradient identity, derived deterministically from a seed (its
- * name), so the same agent looks the same on every screen.
+ * Every agent is shown as one of Harbor's six glass mascots, picked deterministically from its
+ * name so the same agent looks the same on every screen. Names that hint at the job get the
+ * fitting mascot (a shield for refunds, a cloud for outages…); anything else is hashed.
+ * The icons are 512px renders of the 3D mascots from the Figma file (public/mascots).
  */
-const PALETTES: [string, string, string][] = [
-  ["#ff5f6d", "#ffc371", "#d9304f"], // coral
-  ["#3a7bd5", "#6ee2f5", "#2b4c9b"], // ocean
-  ["#f7971e", "#ffd86f", "#e65c2b"], // tangerine
-  ["#7f5af0", "#d4a5ff", "#4338ca"], // violet
-  ["#11998e", "#6ef0a6", "#0b6157"], // jade
-  ["#c98b6b", "#f1c8a6", "#8a5a44"], // sand
-  ["#ee6c8a", "#ffd1dc", "#b8325a"], // rose
-  ["#00a6d6", "#8ef0e0", "#00708f"], // lagoon
+const HINTS: [RegExp, MascotKind][] = [
+  [/refund|billing|payment|invoice|fraud|security|guard/, "sentry"],
+  [/outage|incident|status|uptime|monitor|watch/, "nimbus"],
+  [/triage|route|sort|queue|prioriti/, "orbit"],
+  [/writ|draft|reply|email|respond|summar/, "murmur"],
+  [/idea|content|brainstorm|insight/, "lumen"],
+  [/workflow|sync|automat|integrat/, "facet"],
 ];
 
 function hash(s: string) {
@@ -21,33 +23,19 @@ function hash(s: string) {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  // Final avalanche so similar names land on different palettes.
+  // Final avalanche so similar names land on different mascots.
   h ^= h >>> 16;
   h = Math.imul(h, 0x7feb352d);
   h ^= h >>> 15;
-  h = Math.imul(h, 0x846ca68b);
-  h ^= h >>> 16;
   return h >>> 0;
 }
 
-export function orbColors(seed: string) {
-  const h = hash(seed.trim().toLowerCase());
-  return { colors: PALETTES[h % PALETTES.length], angle: (h >>> 8) % 360 };
+export function mascotFor(seed: string): MascotKind {
+  const s = seed.trim().toLowerCase();
+  return HINTS.find(([re]) => re.test(s))?.[1] ?? MASCOT_KINDS[hash(s) % MASCOT_KINDS.length];
 }
 
-function gradient([a, b, c]: [string, string, string], angle: number) {
-  return [
-    "radial-gradient(120% 120% at 22% 18%, rgba(255,255,255,0.55), transparent 42%)",
-    `radial-gradient(90% 90% at 82% 86%, ${c} 0%, transparent 62%)`,
-    `linear-gradient(${angle}deg, ${a}, ${b})`,
-  ].join(", ");
-}
-
-export function orbBackground(seed: string) {
-  const { colors, angle } = orbColors(seed);
-  return gradient(colors, angle);
-}
-
+/** An agent's icon: its mascot on its tinted tile. `live` adds a soft pulse. */
 export function AgentOrb({
   seed,
   size = 18,
@@ -61,17 +49,21 @@ export function AgentOrb({
   live?: boolean;
   className?: string;
 }) {
-  const radius = shape === "dot" ? "9999px" : `${Math.round(size * 0.28)}px`;
+  const radius = `${Math.round(size * (shape === "dot" ? 0.32 : 0.26))}px`;
   return (
     <span className={cn("relative inline-flex shrink-0", className)} style={{ width: size, height: size }} aria-hidden>
-      {live && <span className="absolute inset-0 animate-sonar bg-success/40" style={{ borderRadius: radius }} />}
-      <span
-        className="relative block size-full"
-        style={{
-          borderRadius: radius,
-          background: orbBackground(seed),
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.14)",
-        }}
+      {/* The pulse suits small icons; larger tiles always sit next to a Live badge. */}
+      {live && size < 32 && <span className="absolute inset-0 animate-sonar bg-success/40" style={{ borderRadius: radius }} />}
+      <Image
+        // Small sizes use a tight crop so the mascot fills the tile instead of its tint.
+        src={`/mascots/${mascotFor(seed)}${size < 48 ? "-sm" : ""}.webp`}
+        alt=""
+        width={size}
+        height={size}
+        unoptimized
+        draggable={false}
+        className="relative size-full object-cover"
+        style={{ borderRadius: radius, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.12)" }}
       />
     </span>
   );

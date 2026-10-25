@@ -47,7 +47,7 @@ export function AgentCard({ featured, lastRun, defaultModel }: { featured: Agent
         variant="glass"
         title="No agents yet"
         description="Describe a job and Harbor builds, tests and deploys an agent in about a minute."
-        actions={<Mascot kinds={["murmur"]} width={88} height={88} className="-my-4" label="Murmur" />}
+        actions={<Mascot kinds={["murmur"]} width={88} height={88} className="-my-4" label="Harbor mascot" />}
       >
         <Label htmlFor="agent-model">Default model</Label>
         <Field id="agent-model" value={modelInfo(defaultModel).label} action={{ href: "/onboarding", label: "Workspace settings", icon: SlidersHorizontal }} />
@@ -171,7 +171,7 @@ export function GoLiveCard() {
           <Link href={allLive ? "/activity" : "/onboarding"}>{allLive ? "View activity" : "Connect"}</Link>
         </Button>
       </div>
-      <Mascot kinds={ALL_MASCOTS} width={340} height={250} className="mx-auto mt-4 sm:absolute sm:-right-2 sm:bottom-3 sm:mt-0" label="Orbit, Facet and Murmur, Harbor's guides" />
+      <Mascot kinds={ALL_MASCOTS} width={340} height={250} className="mx-auto mt-4 sm:absolute sm:-right-2 sm:bottom-3 sm:mt-0" label="Harbor's mascots" />
     </section>
   );
 }
